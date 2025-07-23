@@ -2,9 +2,9 @@ from kiteconnect import KiteConnect
 import os
 import logging
 
-API_KEY = os.getenv("ZERODHA_API_KEY")
-API_SECRET = os.getenv("ZERODHA_API_SECRET")
-ACCESS_TOKEN = os.getenv("ZERODHA_ACCESS_TOKEN")
+API_KEY = os.getenv("KITE_API_KEY")
+API_SECRET = os.getenv("KITE_API_SECRET")
+ACCESS_TOKEN = os.getenv("KITE_ACCESS_TOKEN")
 
 kite = KiteConnect(api_key=API_KEY)
 kite.set_access_token(ACCESS_TOKEN)
