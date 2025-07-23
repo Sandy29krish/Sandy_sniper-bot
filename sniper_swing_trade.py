@@ -4,6 +4,7 @@ from utils.indicators import calculate_mas, calculate_rsi, calculate_lr_slope, c
 from utils.nse_data import fetch_live_price_by_token
 from utils.trade_logger import log_trade
 from utils.telegram_bot import send_telegram_message
+from utils.swing_config import SWING_CONFIG
 
 logging.basicConfig(
     filename='swing_bot.log',
@@ -46,12 +47,7 @@ def swing_ma_signal(current_price, prev_price, ma_level, trend):
 
 class SniperSwing:
     def __init__(self, capital, config):
-        """
-        :param capital: float, total capital allocated for swing trades
-        :param config: dict, configuration per symbol with keys:
-            'instrument_token', 'exchange', 'lot_size', 'cpr_level', 'trend', 'full_name'
-        """
-        self.positions = {}  # Active positions keyed by symbol_key
+        self.positions = {}
         self.capital = capital
         self.config = config
         self.prev_closes = {symbol_key: None for symbol_key in config.keys()}
@@ -60,8 +56,6 @@ class SniperSwing:
         conf = self.config[symbol_key]
         token = conf['instrument_token']
         exchange = conf['exchange']
-
-        # Fetch price data and indicators via your existing utils
         price_data = fetch_live_price_by_token(token, exchange)
         mas = calculate_mas(price_data)
         rsi = calculate_rsi(price_data)
@@ -73,15 +67,12 @@ class SniperSwing:
         current_price, mas, rsi, lr_slope, pvi = self.fetch_data(symbol_key)
         prev_close = self.prev_closes.get(symbol_key)
         conf = self.config[symbol_key]
-
         if prev_close is None:
             self.prev_closes[symbol_key] = current_price
             return False
-
         direction = 'down_to_cpr' if prev_close > conf['cpr_level'] else 'up_to_cpr'
         cpr_signal = swing_cpr_signal(current_price, prev_close, conf['cpr_level'], direction)
         ma_signal = swing_ma_signal(current_price, prev_close, mas['ma20'], conf['trend'])
-
         bullish_conditions = (
             current_price > mas['ma9'] > mas['ma20'] > mas['ma50'] > mas['ma200'] and
             rsi['rsi21'] > rsi['rsi_ma26'] > rsi['rsi_ma14'] > rsi['rsi_ma9'] and
@@ -89,7 +80,6 @@ class SniperSwing:
             lr_slope and
             (cpr_signal in ['bullish_continuation', 'bullish_breakout'] or ma_signal == 'bullish_continuation')
         )
-
         bearish_conditions = (
             current_price < mas['ma9'] < mas['ma20'] < mas['ma50'] < mas['ma200'] and
             rsi['rsi21'] < rsi['rsi_ma26'] < rsi['rsi_ma14'] < rsi['rsi_ma9'] and
@@ -97,11 +87,8 @@ class SniperSwing:
             not lr_slope and
             (cpr_signal in ['bearish_continuation', 'bearish_breakdown'] or ma_signal == 'bearish_continuation')
         )
-
         logging.info(f"{conf['full_name']} Entry Check - Bullish: {bullish_conditions}, Bearish: {bearish_conditions}, CPR: {cpr_signal}, MA: {ma_signal}")
-
         self.prev_closes[symbol_key] = current_price
-
         if bullish_conditions:
             return 'bullish'
         elif bearish_conditions:
@@ -115,11 +102,11 @@ class SniperSwing:
         full_name = conf['full_name']
         logging.info(f"Entering {direction} trade on {full_name} with lot size {lot_size}")
         send_telegram_message(f"✅ Entering {direction} swing trade on {full_name}, Lot size: {lot_size}")
-        # TODO: Add Zerodha order placement code here using instrument_token and exchange
+        # TODO: Zerodha API order placement here
         self.positions[symbol_key] = {'direction': direction, 'entry_time': datetime.now()}
 
     def check_exit_conditions(self, symbol_key):
-        # TODO: Implement your exit conditions based on your strategy rules
+        # TODO: Implement your exit conditions here
         return False
 
     def exit_trade(self, symbol_key):
@@ -130,7 +117,7 @@ class SniperSwing:
         full_name = conf['full_name']
         logging.info(f"Exiting {direction} trade on {full_name}")
         send_telegram_message(f"❌ Exiting {direction} swing trade on {full_name}")
-        # TODO: Add Zerodha order exit code here
+        # TODO: Zerodha order exit here
         del self.positions[symbol_key]
 
     def run(self):
