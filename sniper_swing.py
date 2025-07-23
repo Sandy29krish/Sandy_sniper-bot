@@ -4,6 +4,7 @@ from utils.indicators import calculate_mas, calculate_rsi, calculate_lr_slope, c
 from utils.nse_data import fetch_live_price_by_token
 from utils.trade_logger import log_trade
 from utils.telegram_bot import send_telegram_message
+from utils.zerodha_api import place_order, exit_order  # Your Zerodha API wrapper
 from utils.swing_config import SWING_CONFIG
 
 logging.basicConfig(
@@ -11,7 +12,6 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
-
 
 def swing_cpr_signal(current_price, prev_price, cpr_level, direction):
     if direction == 'down_to_cpr':
@@ -30,7 +30,6 @@ def swing_cpr_signal(current_price, prev_price, cpr_level, direction):
             return 'bullish_breakout'
     return 'no_signal'
 
-
 def swing_ma_signal(current_price, prev_price, ma_level, trend):
     if trend == 'uptrend':
         if prev_price > ma_level and current_price <= ma_level:
@@ -44,7 +43,6 @@ def swing_ma_signal(current_price, prev_price, ma_level, trend):
             return 'bearish_continuation'
     return 'no_signal'
 
-
 class SniperSwing:
     def __init__(self, capital, config):
         self.positions = {}
@@ -54,9 +52,7 @@ class SniperSwing:
 
     def fetch_data(self, symbol_key):
         conf = self.config[symbol_key]
-        token = conf['instrument_token']
-        exchange = conf['exchange']
-        price_data = fetch_live_price_by_token(token, exchange)
+        price_data = fetch_live_price_by_token(conf['instrument_token'], conf['exchange'])
         mas = calculate_mas(price_data)
         rsi = calculate_rsi(price_data)
         lr_slope = calculate_lr_slope(price_data)
@@ -102,11 +98,23 @@ class SniperSwing:
         full_name = conf['full_name']
         logging.info(f"Entering {direction} trade on {full_name} with lot size {lot_size}")
         send_telegram_message(f"✅ Entering {direction} swing trade on {full_name}, Lot size: {lot_size}")
-        # TODO: Zerodha API order placement here
-        self.positions[symbol_key] = {'direction': direction, 'entry_time': datetime.now()}
+        try:
+            place_order(
+                instrument_token=conf['instrument_token'],
+                exchange=conf['exchange'],
+                quantity=lot_size,
+                transaction_type='BUY' if direction == 'bullish' else 'SELL',
+                product='NRML',
+                order_type='MARKET'
+            )
+            self.positions[symbol_key] = {'direction': direction, 'entry_time': datetime.now()}
+            log_trade(symbol=full_name, direction=direction, lot_size=lot_size, status='entered')
+        except Exception as e:
+            logging.error(f"Error placing order for {full_name}: {e}")
+            send_telegram_message(f"⚠️ Error placing order for {full_name}: {e}")
 
     def check_exit_conditions(self, symbol_key):
-        # TODO: Implement your exit conditions here
+        # Implement your exit conditions here
         return False
 
     def exit_trade(self, symbol_key):
@@ -117,8 +125,20 @@ class SniperSwing:
         full_name = conf['full_name']
         logging.info(f"Exiting {direction} trade on {full_name}")
         send_telegram_message(f"❌ Exiting {direction} swing trade on {full_name}")
-        # TODO: Zerodha order exit here
-        del self.positions[symbol_key]
+        try:
+            exit_order(
+                instrument_token=conf['instrument_token'],
+                exchange=conf['exchange'],
+                quantity=conf['lot_size'],
+                transaction_type='SELL' if direction == 'bullish' else 'BUY',
+                product='NRML',
+                order_type='MARKET'
+            )
+            log_trade(symbol=full_name, direction=direction, lot_size=conf['lot_size'], status='exited')
+            del self.positions[symbol_key]
+        except Exception as e:
+            logging.error(f"Error exiting order for {full_name}: {e}")
+            send_telegram_message(f"⚠️ Error exiting order for {full_name}: {e}")
 
     def run(self):
         logging.info("Running Sniper Swing multi-symbol iteration")
