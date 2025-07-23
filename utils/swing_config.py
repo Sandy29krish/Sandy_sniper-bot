@@ -1,5 +1,3 @@
-# utils/swing_config.py
-
 SWING_CONFIG = {
     'NIFTY': {
         'instrument_token': 256265,
