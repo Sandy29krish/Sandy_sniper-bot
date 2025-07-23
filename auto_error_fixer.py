@@ -1,16 +1,37 @@
 import logging
 import time
 import traceback
+from functools import wraps
 
-def auto_error_fixer(func, retry_delay=5, max_retries=3):
-    retries = 0
-    while retries < max_retries:
-        try:
-            return func()
-        except Exception as e:
-            logging.error(f"Error occurred: {e}\n{traceback.format_exc()}")
-            retries += 1
-            logging.info(f"Retrying {func.__name__} in {retry_delay} seconds... Attempt {retries} of {max_retries}")
-            time.sleep(retry_delay)
-    logging.error(f"Max retries reached for {func.__name__}. Giving up.")
-    return None
+def auto_error_fixer(
+    retry_delay=5,
+    max_retries=3,
+    exceptions=(Exception,),
+    backoff=False,
+    raise_on_failure=False,
+    logger=None
+):
+    """
+    Decorator to retry a function upon exception.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            _logger = logger or logging.getLogger(__name__)
+            delay = retry_delay
+            for attempt in range(1, max_retries + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    _logger.error(f"Error in {func.__name__}: {e}\n{traceback.format_exc()}")
+                    if attempt == max_retries:
+                        _logger.error(f"Max retries reached for {func.__name__}.")
+                        if raise_on_failure:
+                            raise
+                        return None
+                    _logger.info(f"Retry {attempt}/{max_retries} in {delay} seconds...")
+                    time.sleep(delay)
+                    if backoff:
+                        delay *= 2
+        return wrapper
+    return decorator
