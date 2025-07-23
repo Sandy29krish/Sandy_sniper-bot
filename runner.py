@@ -1,9 +1,18 @@
+import time
 from sniper_swing import SniperSwing
 from utils.swing_config import SWING_CONFIG
-import time
 
-bot = SniperSwing(capital=170000, config=SWING_CONFIG)
+def main():
+    capital = 170000  # Your trading capital
+    bot = SniperSwing(capital=capital, config=SWING_CONFIG)
+    print("Starting Sniper Swing Bot...")
 
-while True:
-    bot.run()
-    time.sleep(30)  # Adjust sleep time as needed (e.g. 30 seconds or aligned with candle timeframe)
+    try:
+        while True:
+            bot.run()
+            time.sleep(30)  # Adjust sleep duration as per your strategy timeframe
+    except KeyboardInterrupt:
+        print("Sniper Swing Bot stopped by user.")
+
+if __name__ == "__main__":
+    main()
