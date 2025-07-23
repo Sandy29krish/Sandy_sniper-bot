@@ -1,153 +1,179 @@
 import logging
+import os
+import json
 from datetime import datetime
 from utils.indicators import calculate_mas, calculate_rsi, calculate_lr_slope, calculate_pvi
-from utils.nse_data import fetch_live_price_by_token
-from utils.trade_logger import log_trade
-from utils.telegram_bot import send_telegram_message
-from utils.zerodha_api import place_order, exit_order  # Your Zerodha API wrapper
-from utils.swing_config import SWING_CONFIG
+from utils.trading import TradingAPI
+from utils.notifications import Notifier
 
-logging.basicConfig(
-    filename='swing_bot.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+STATE_FILE = "bot_state.json"
 
-def swing_cpr_signal(current_price, prev_price, cpr_level, direction):
-    if direction == 'down_to_cpr':
-        if prev_price > cpr_level and current_price <= cpr_level:
-            return 'testing_cpr_support'
-        elif prev_price <= cpr_level and current_price > cpr_level:
-            return 'bullish_continuation'
-        elif prev_price > cpr_level and current_price < cpr_level:
-            return 'bearish_breakdown'
-    elif direction == 'up_to_cpr':
-        if prev_price < cpr_level and current_price >= cpr_level:
-            return 'testing_cpr_resistance'
-        elif prev_price >= cpr_level and current_price < cpr_level:
-            return 'bearish_continuation'
-        elif prev_price < cpr_level and current_price > cpr_level:
-            return 'bullish_breakout'
-    return 'no_signal'
+def setup_logger():
+    logger = logging.getLogger("SniperSwing")
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler("sniper_swing.log")
+    formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger
 
-def swing_ma_signal(current_price, prev_price, ma_level, trend):
-    if trend == 'uptrend':
-        if prev_price > ma_level and current_price <= ma_level:
-            return 'testing_support'
-        elif prev_price <= ma_level and current_price > ma_level:
-            return 'bullish_continuation'
-    elif trend == 'downtrend':
-        if prev_price < ma_level and current_price >= ma_level:
-            return 'testing_resistance'
-        elif prev_price >= ma_level and current_price < ma_level:
-            return 'bearish_continuation'
-    return 'no_signal'
+class StateManager:
+    """Handles saving/loading bot state for persistence."""
+    def __init__(self, filename=STATE_FILE):
+        self.filename = filename
+
+    def load(self):
+        if os.path.isfile(self.filename):
+            with open(self.filename, "r") as f:
+                return json.load(f)
+        return {"positions": {}, "prev_closes": {}}
+
+    def save(self, state):
+        with open(self.filename, "w") as f:
+            json.dump(state, f)
 
 class SniperSwing:
-    def __init__(self, capital, config):
-        self.positions = {}
+    """
+    Swing trading bot using CPR, Moving Averages, RSI, and PVI.
+    """
+    def __init__(self, config, capital, logger):
+        self.symbols = config["symbols"]
         self.capital = capital
         self.config = config
-        self.prev_closes = {symbol_key: None for symbol_key in config.keys()}
+        self.logger = logger
+        self.trading_api = TradingAPI(config["api_key"], config["api_secret"])
+        self.notifier = Notifier(config["telegram_token"], config["telegram_chat_id"])
+        self.state_manager = StateManager()
+        # Load persistent state
+        state = self.state_manager.load()
+        self.positions = state.get("positions", {})
+        self.prev_closes = state.get("prev_closes", {})
 
-    def fetch_data(self, symbol_key):
-        conf = self.config[symbol_key]
-        price_data = fetch_live_price_by_token(conf['instrument_token'], conf['exchange'])
-        mas = calculate_mas(price_data)
-        rsi = calculate_rsi(price_data)
-        lr_slope = calculate_lr_slope(price_data)
-        pvi = calculate_pvi(price_data)
-        return price_data['close'], mas, rsi, lr_slope, pvi
-
-    def check_entry_conditions(self, symbol_key):
-        current_price, mas, rsi, lr_slope, pvi = self.fetch_data(symbol_key)
-        prev_close = self.prev_closes.get(symbol_key)
-        conf = self.config[symbol_key]
-        if prev_close is None:
-            self.prev_closes[symbol_key] = current_price
-            return False
-        direction = 'down_to_cpr' if prev_close > conf['cpr_level'] else 'up_to_cpr'
-        cpr_signal = swing_cpr_signal(current_price, prev_close, conf['cpr_level'], direction)
-        ma_signal = swing_ma_signal(current_price, prev_close, mas['ma20'], conf['trend'])
-        bullish_conditions = (
-            current_price > mas['ma9'] > mas['ma20'] > mas['ma50'] > mas['ma200'] and
-            rsi['rsi21'] > rsi['rsi_ma26'] > rsi['rsi_ma14'] > rsi['rsi_ma9'] and
-            pvi and
-            lr_slope and
-            (cpr_signal in ['bullish_continuation', 'bullish_breakout'] or ma_signal == 'bullish_continuation')
-        )
-        bearish_conditions = (
-            current_price < mas['ma9'] < mas['ma20'] < mas['ma50'] < mas['ma200'] and
-            rsi['rsi21'] < rsi['rsi_ma26'] < rsi['rsi_ma14'] < rsi['rsi_ma9'] and
-            not pvi and
-            not lr_slope and
-            (cpr_signal in ['bearish_continuation', 'bearish_breakdown'] or ma_signal == 'bearish_continuation')
-        )
-        logging.info(f"{conf['full_name']} Entry Check - Bullish: {bullish_conditions}, Bearish: {bearish_conditions}, CPR: {cpr_signal}, MA: {ma_signal}")
-        self.prev_closes[symbol_key] = current_price
-        if bullish_conditions:
-            return 'bullish'
-        elif bearish_conditions:
-            return 'bearish'
-        else:
-            return False
-
-    def enter_trade(self, symbol_key, direction):
-        conf = self.config[symbol_key]
-        lot_size = conf['lot_size']
-        full_name = conf['full_name']
-        logging.info(f"Entering {direction} trade on {full_name} with lot size {lot_size}")
-        send_telegram_message(f"✅ Entering {direction} swing trade on {full_name}, Lot size: {lot_size}")
+    def fetch_data(self, symbol):
         try:
-            place_order(
-                instrument_token=conf['instrument_token'],
-                exchange=conf['exchange'],
-                quantity=lot_size,
-                transaction_type='BUY' if direction == 'bullish' else 'SELL',
-                product='NRML',
-                order_type='MARKET'
-            )
-            self.positions[symbol_key] = {'direction': direction, 'entry_time': datetime.now()}
-            log_trade(symbol=full_name, direction=direction, lot_size=lot_size, status='entered')
+            price = self.trading_api.get_price(symbol)
+            mas = calculate_mas(symbol)
+            rsi = calculate_rsi(symbol)
+            slope = calculate_lr_slope(symbol)
+            pvi = calculate_pvi(symbol)
+            return price, mas, rsi, slope, pvi
         except Exception as e:
-            logging.error(f"Error placing order for {full_name}: {e}")
-            send_telegram_message(f"⚠️ Error placing order for {full_name}: {e}")
+            self.logger.error(f"Data fetch error for {symbol}: {e}")
+            self.notifier.send_telegram(f"Data fetch error for {symbol}: {e}")
+            return None, None, None, None, None
 
-    def check_exit_conditions(self, symbol_key):
-        # Implement your exit conditions here
+    def swing_cpr_signal(self, symbol, price, cpr, prev_close):
+        # CPR logic (simplified for illustration)
+        if price > cpr["top"]:
+            return "resistance"
+        elif price < cpr["bottom"]:
+            return "support"
+        elif prev_close and prev_close < cpr["bottom"] and price > cpr["bottom"]:
+            return "breakout"
+        elif prev_close and prev_close > cpr["top"] and price < cpr["top"]:
+            return "breakdown"
+        return None
+
+    def swing_ma_signal(self, mas, price, prev_close):
+        # MA logic (simplified for illustration)
+        if price > mas["ma20"]:
+            return "resistance"
+        elif price < mas["ma20"]:
+            return "support"
+        elif prev_close and prev_close < mas["ma20"] and price > mas["ma20"]:
+            return "breakout"
+        elif prev_close and prev_close > mas["ma20"] and price < mas["ma20"]:
+            return "breakdown"
+        return None
+
+    def check_entry_conditions(self, symbol, price, mas, rsi, slope, pvi):
+        # Example: bullish entry
+        if (price > mas["ma20"] and
+            mas["ma20"] > mas["ma50"] > mas["ma100"] and
+            rsi["rsi2"] > 50 and rsi["rsi5"] > 50 and
+            pvi > 0 and slope > 0):
+            return "bullish"
+        # Example: bearish entry
+        if (price < mas["ma20"] and
+            mas["ma20"] < mas["ma50"] < mas["ma100"] and
+            rsi["rsi2"] < 50 and rsi["rsi5"] < 50 and
+            pvi < 0 and slope < 0):
+            return "bearish"
+        return None
+
+    def enter_trade(self, symbol, direction, price):
+        amount = self.capital / len(self.symbols)
+        try:
+            order = self.trading_api.place_order(symbol, direction, amount)
+            self.positions[symbol] = {"direction": direction, "entry_price": price, "timestamp": datetime.utcnow().isoformat()}
+            self.logger.info(f"Entered {direction} trade on {symbol} at {price}")
+            self.notifier.send_telegram(f"Entered {direction} trade on {symbol} at {price}")
+            self.save_state()
+        except Exception as e:
+            self.logger.error(f"Trade entry failure for {symbol}: {e}")
+            self.notifier.send_telegram(f"Trade entry failure for {symbol}: {e}")
+
+    def check_exit_conditions(self, symbol, price):
+        # Placeholder: Implement your actual exit logic
+        pos = self.positions.get(symbol)
+        if not pos:
+            return False
+        # Example: exit if price moves 2% against position
+        entry = pos["entry_price"]
+        if pos["direction"] == "bullish" and price < entry * 0.98:
+            return True
+        if pos["direction"] == "bearish" and price > entry * 1.02:
+            return True
         return False
 
-    def exit_trade(self, symbol_key):
-        if symbol_key not in self.positions:
-            return
-        conf = self.config[symbol_key]
-        direction = self.positions[symbol_key]['direction']
-        full_name = conf['full_name']
-        logging.info(f"Exiting {direction} trade on {full_name}")
-        send_telegram_message(f"❌ Exiting {direction} swing trade on {full_name}")
+    def exit_trade(self, symbol, price):
         try:
-            exit_order(
-                instrument_token=conf['instrument_token'],
-                exchange=conf['exchange'],
-                quantity=conf['lot_size'],
-                transaction_type='SELL' if direction == 'bullish' else 'BUY',
-                product='NRML',
-                order_type='MARKET'
-            )
-            log_trade(symbol=full_name, direction=direction, lot_size=conf['lot_size'], status='exited')
-            del self.positions[symbol_key]
+            self.trading_api.close_position(symbol)
+            self.logger.info(f"Exited trade on {symbol} at {price}")
+            self.notifier.send_telegram(f"Exited trade on {symbol} at {price}")
+            self.positions.pop(symbol, None)
+            self.save_state()
         except Exception as e:
-            logging.error(f"Error exiting order for {full_name}: {e}")
-            send_telegram_message(f"⚠️ Error exiting order for {full_name}: {e}")
+            self.logger.error(f"Trade exit failure for {symbol}: {e}")
+            self.notifier.send_telegram(f"Trade exit failure for {symbol}: {e}")
+
+    def save_state(self):
+        self.state_manager.save({"positions": self.positions, "prev_closes": self.prev_closes})
 
     def run(self):
-        logging.info("Running Sniper Swing multi-symbol iteration")
-        for symbol_key in self.config.keys():
-            position = self.positions.get(symbol_key)
-            if position:
-                if self.check_exit_conditions(symbol_key):
-                    self.exit_trade(symbol_key)
-            else:
-                direction = self.check_entry_conditions(symbol_key)
-                if direction:
-                    self.enter_trade(symbol_key, direction)
+        for symbol in self.symbols:
+            price, mas, rsi, slope, pvi = self.fetch_data(symbol)
+            if not all([price, mas, rsi, slope, pvi]):
+                continue  # Skip iteration on data failure
+
+            prev_close = self.prev_closes.get(symbol)
+            self.prev_closes[symbol] = price
+
+            # Exit logic
+            if symbol in self.positions:
+                if self.check_exit_conditions(symbol, price):
+                    self.exit_trade(symbol, price)
+                continue
+
+            # Entry logic
+            direction = self.check_entry_conditions(symbol, price, mas, rsi, slope, pvi)
+            if direction:
+                self.enter_trade(symbol, direction, price)
+
+# Example usage:
+if __name__ == "__main__":
+    import yaml
+
+    # Load config
+    with open("config.yaml", "r") as f:
+        config = yaml.safe_load(f)
+
+    logger = setup_logger()
+    capital = float(os.getenv("CAPITAL", 100000))
+    bot = SniperSwing(config, capital, logger)
+    try:
+        while True:
+            bot.run()
+    except KeyboardInterrupt:
+        logger.info("Bot stopped by user. Exiting gracefully.")
+        bot.save_state()
