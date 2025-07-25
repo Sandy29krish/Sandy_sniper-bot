@@ -19,16 +19,14 @@ SWING_CONFIG = {
         'instrument_token': 11910258,
         'exchange': 'BSE',
         'lot_size': 10,
-        'cpr_level': 58000,
+        'cpr_level': 74000,
         'trend': 'uptrend',
-        'full_name': 'SENSEX'
-    },
-    'FINNIFTY': {
-        'instrument_token': 2601057,
-        'exchange': 'NSE',
-        'lot_size': 25,
-        'cpr_level': 18000,
-        'trend': 'uptrend',
-        'full_name': 'FINNIFTY'
+        'full_name': 'SENSEX Index'
     }
 }
+
+# Total capital allocated for swing strategy
+CAPITAL = 170000  # You can adjust this as needed
+
+# List of symbols extracted from SWING_CONFIG keys
+SYMBOLS = list(SWING_CONFIG.keys())
