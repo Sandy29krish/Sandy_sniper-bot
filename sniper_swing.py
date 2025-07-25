@@ -3,38 +3,35 @@
 import os
 import json
 import logging
-import time as t
 from datetime import datetime, time
 import pytz
-import yaml
-
 from utils.kite_api import place_order, exit_order
-from utils.indicator import get_indicators_15m_30m
+from utils.notifications import Notifier
 from utils.swing_config import SYMBOLS, CAPITAL
 from utils.lot_manager import get_swing_strike
 from utils.nse_data import get_future_price, get_next_expiry_date
 from utils.trade_logger import log_swing_trade
+from utils.indicator import get_indicators_15m_30m
 from utils.ai_assistant import analyze_trade_signal
-from utils.telegram_bot import send_telegram_message
 
 STATE_FILE = "sniper_swing_state.json"
 MAX_DAILY_TRADES = 3
 MAX_SIMULTANEOUS_TRADES = 3
 
-# Logging setup
+# Logger
 def setup_logger():
     logger = logging.getLogger("SniperSwing")
     logger.setLevel(logging.INFO)
     if not logger.handlers:
-        fh = logging.FileHandler("sniper_swing.log")
+        handler = logging.FileHandler("sniper_swing.log")
         formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
     return logger
 
 logger = setup_logger()
 
-# State management
+# State
 class StateManager:
     def __init__(self, filename=STATE_FILE):
         self.filename = filename
@@ -45,7 +42,7 @@ class StateManager:
             try:
                 with open(self.filename, "r") as f:
                     return json.load(f)
-            except Exception:
+            except:
                 pass
         return {"positions": {}, "daily_trade_count": 0, "last_trade_date": None}
 
@@ -60,21 +57,22 @@ class StateManager:
             self.state["last_trade_date"] = today
             self.save()
 
-# Core bot class
 class SniperSwingBot:
-    def __init__(self, capital):
+    def __init__(self, config, capital):
+        self.config = config
         self.capital = capital
+        self.notifier = Notifier(config["telegram_token"], config["telegram_id"])
         self.state = StateManager()
 
     def is_friday_315(self):
         now = datetime.now(pytz.timezone("Asia/Kolkata"))
-        return now.weekday() == 4 and now.time() >= time(15, 20)
+        return now.weekday() == 4 and now.time() >= time(15, 15)
 
     def run(self):
         self.state.reset_if_new_day()
 
         if self.is_friday_315():
-            logger.info("Forced exit at 3:20 PM Friday")
+            logger.info("Forced exit at 3:15 PM Friday")
             for sym in list(self.state.state["positions"].keys()):
                 self.exit_trade(sym)
             return
@@ -115,12 +113,11 @@ class SniperSwingBot:
             reasoning = analyze_trade_signal(symbol, indicators, signal)
 
             try:
-                tradingsymbol = f"{symbol}{expiry}{strike}{'CE' if signal == 'bullish' else 'PE'}"
                 place_order(
-                    tradingsymbol=tradingsymbol,
+                    tradingsymbol=strike,
                     exchange="NFO",
                     quantity=quantity,
-                    transaction_type="BUY",
+                    transaction_type="BUY" if signal == "bullish" else "SELL",
                     product="NRML",
                     order_type="MARKET"
                 )
@@ -134,11 +131,11 @@ class SniperSwingBot:
                 self.state.state["daily_trade_count"] += 1
                 self.state.save()
                 msg = f"✅ {symbol} SWING {signal.upper()} ENTRY\nStrike: {strike}, Qty: {quantity}, Expiry: {expiry}\n\n🤖 Reason:\n{reasoning}"
-                send_telegram_message(msg)
+                self.notifier.send_telegram(msg)
                 log_swing_trade(symbol, signal, strike, premium, quantity, expiry, reasoning)
             except Exception as e:
                 logger.error(f"Order failed: {e}")
-                send_telegram_message(f"Order failed: {e}")
+                self.notifier.send_telegram(f"Order failed: {e}")
 
     def calculate_lot_size(self, premium, lot_size):
         capital_per_trade = self.capital / MAX_DAILY_TRADES
@@ -148,43 +145,46 @@ class SniperSwingBot:
         data = self.state.state["positions"].get(symbol)
         if not data:
             return False
-        current_price = get_future_price(symbol)
-        entry = data["entry_price"]
+        current_price = premium = data["entry_price"]  # Replace with actual LTP fetcher if needed
         signal = data["signal"]
 
-        if signal == "bullish" and current_price < entry * 0.95:
+        if signal == "bullish" and current_price < premium * 0.95:
             return True
-        if signal == "bearish" and current_price > entry * 1.05:
+        if signal == "bearish" and current_price > premium * 1.05:
             return True
+
         return False
 
     def exit_trade(self, symbol):
+        data = self.state.state["positions"].get(symbol)
+        if not data:
+            return
         try:
-            data = self.state.state["positions"].get(symbol)
-            tradingsymbol = f"{symbol}{data['expiry']}{data['strike']}{'CE' if data['signal'] == 'bullish' else 'PE'}"
             exit_order(
-                tradingsymbol=tradingsymbol,
+                tradingsymbol=data["strike"],
                 exchange="NFO",
                 quantity=SYMBOLS[symbol]["lot_size"],
-                transaction_type="SELL",
+                transaction_type="SELL" if data["signal"] == "bullish" else "BUY",
                 product="NRML",
                 order_type="MARKET"
             )
-            send_telegram_message(f"🚪 EXITED {symbol} position")
+            msg = f"🚪 EXITED {symbol} position"
+            self.notifier.send_telegram(msg)
             self.state.state["positions"].pop(symbol, None)
             self.state.save()
         except Exception as e:
             logger.error(f"Exit failed: {e}")
-            send_telegram_message(f"Exit failed: {e}")
+            self.notifier.send_telegram(f"Exit failed: {e}")
 
-# Run loop
 if __name__ == "__main__":
+    import yaml
+    with open("config.yaml") as f:
+        config = yaml.safe_load(f)
     capital = float(os.getenv("CAPITAL", CAPITAL))
-    bot = SniperSwingBot(capital)
+    bot = SniperSwingBot(config, capital)
     try:
         while True:
             bot.run()
-            t.sleep(60)
     except KeyboardInterrupt:
         bot.state.save()
         logger.info("Sniper Swing stopped.")
