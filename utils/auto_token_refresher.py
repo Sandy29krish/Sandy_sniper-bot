@@ -2,8 +2,8 @@ import threading
 import time
 import logging
 from typing import Optional, Callable
-from zerodha_auth import perform_auto_login  # ✅ Correct import location
-from utils.kite_api import kite  # Your KiteConnect instance
+from zerodha_auth import perform_auto_login  # ✅ Correct import for local import
+from utils.kite_api import kite  # ✅ assuming kite_api.py is inside utils/
 
 DEFAULT_REFRESH_INTERVAL = 60 * 15  # 15 minutes
 
@@ -27,7 +27,7 @@ def token_refresher_loop(
             new_access_token = perform_auto_login()
             kite.set_access_token(new_access_token)
 
-            # ✅ Write token to file so it can be sourced into shell
+            # ✅ Save to shell-sourced file
             with open("/root/.kite_token_env", "w") as f:
                 f.write(f'export KITE_ACCESS_TOKEN="{new_access_token}"\n')
 
@@ -66,7 +66,7 @@ def start_token_refresher(
     thread.start()
     return thread, stop_event
 
-# ✅ Standalone execution support
+# ✅ CLI execution support
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
