@@ -1,7 +1,7 @@
 import os
 import time
 import pyotp
-import tempfile  # ✅ NEW
+import tempfile
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -14,12 +14,19 @@ def perform_auto_login():
     password = os.getenv("KITE_PASSWORD")
     totp_secret = os.getenv("KITE_TOTP_SECRET")
 
-    # ✅ Setup headless Chrome with unique temp user-data-dir
+    # ✅ Setup headless Chrome with unique user-data-dir
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")  # ✅ fixes session error
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-software-rasterizer")
+    chrome_options.add_argument("--disable-background-networking")
+    chrome_options.add_argument("--disable-sync")
+    chrome_options.add_argument("--disable-default-apps")
+    chrome_options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")  # New unique directory
 
     driver = webdriver.Chrome(options=chrome_options)
 
