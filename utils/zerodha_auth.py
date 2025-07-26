@@ -1,6 +1,9 @@
-import pyotp
-import requests
 import os
+import time
+import pyotp
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 from kiteconnect import KiteConnect
 
 def perform_auto_login():
@@ -10,32 +13,41 @@ def perform_auto_login():
     password = os.getenv("KITE_PASSWORD")
     totp_secret = os.getenv("KITE_TOTP_SECRET")
 
-    # Generate TOTP
-    totp = pyotp.TOTP(totp_secret).now()
+    # ✅ Setup headless Chrome
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(options=chrome_options)
 
-    session = requests.Session()
+    try:
+        login_url = f"https://kite.zerodha.com/connect/login?v=3&api_key={api_key}"
+        driver.get(login_url)
+        time.sleep(2)
 
-    # Step 1: Initiate login
-    login_url = "https://kite.zerodha.com/api/login"
-    data = {
-        "user_id": user_id,
-        "password": password,
-        "twofa_value": totp,
-        "twofa_type": "totp"
-    }
-    resp = session.post(login_url, data=data)
-    if not resp.ok or "request_id" not in resp.json().get("data", {}):
-        raise Exception(f"Login failed: {resp.text}")
+        # Step 1: Enter user ID
+        driver.find_element(By.ID, "userid").send_keys(user_id)
+        driver.find_element(By.ID, "password").send_keys(password)
+        driver.find_element(By.XPATH, "//button[@type='submit']").click()
+        time.sleep(2)
 
-    request_id = resp.json()["data"]["request_id"]
+        # Step 2: Enter TOTP
+        totp = pyotp.TOTP(totp_secret).now()
+        driver.find_element(By.XPATH, "//input[@type='text']").send_keys(totp)
+        driver.find_element(By.XPATH, "//button[@type='submit']").click()
+        time.sleep(3)
 
-    # Step 2: Get request token from request_id
-    token_url = f"https://kite.zerodha.com/api/login/token"
-    token_resp = session.post(token_url, data={"request_id": request_id})
-    if not token_resp.ok or "data" not in token_resp.json():
-        raise Exception(f"Token fetch failed: {token_resp.text}")
+        # Step 3: Get request_token from URL
+        current_url = driver.current_url
+        if "request_token=" not in current_url:
+            raise Exception("Login failed or request_token not found in URL.")
+        request_token = current_url.split("request_token=")[1].split("&")[0]
 
-    access_token = token_resp.json()["data"]["access_token"]
+        # Step 4: Generate access_token
+        kite = KiteConnect(api_key=api_key)
+        session_data = kite.generate_session(request_token, api_secret=api_secret)
+        access_token = session_data["access_token"]
+        return access_token
 
-    # Step 3: Return access_token
-    return access_token
+    finally:
+        driver.quit()
