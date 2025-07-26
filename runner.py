@@ -1,9 +1,12 @@
+# runner.py
+
 import os
 import time
 import argparse
 import logging
-from sniper_swing import run_swing_strategy  # ✅ function, not class
+from sniper_swing import run_swing_strategy  # ✅ Main bot function
 from utils.swing_config import SWING_CONFIG
+from utils.auto_token_refresher import start_token_refresher  # ✅ Token refresh loop
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run the Sniper Swing Bot.")
@@ -23,6 +26,10 @@ def main():
     args = parse_args()
     logging.info("🚀 Starting Sniper Swing Bot with capital: ₹%s", args.capital)
 
+    # ✅ Start auto token refresher
+    logging.info("🔄 Starting Kite token refresher in background...")
+    token_thread, stop_event = start_token_refresher()
+
     config = {
         "telegram_token": os.getenv("TELEGRAM_BOT_TOKEN"),
         "telegram_id": os.getenv("TELEGRAM_ID")
@@ -38,8 +45,10 @@ def main():
             time.sleep(args.sleep)
     except KeyboardInterrupt:
         logging.info("⛔ Sniper Swing Bot stopped by user.")
+        stop_event.set()
     except Exception as e:
         logging.critical("🔥 Fatal error: %s", e)
+        stop_event.set()
     finally:
         logging.info("🛑 Bot exiting gracefully.")
 
