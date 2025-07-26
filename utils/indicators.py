@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from utils.zerodha_auth import get_kite_instance
+from utils.kite_api import kite
 from utils.nse_data import SYMBOL_TOKEN_MAP
 
 def calculate_mas(df):
