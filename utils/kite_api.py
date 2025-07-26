@@ -1,15 +1,10 @@
-# utils/kite_api.py
-
 from kiteconnect import KiteConnect
 import os
 import logging
 
-# Load credentials
 API_KEY = os.getenv("KITE_API_KEY")
-API_SECRET = os.getenv("KITE_API_SECRET")
 ACCESS_TOKEN = os.getenv("KITE_ACCESS_TOKEN")
 
-# Setup Kite instance
 kite = KiteConnect(api_key=API_KEY)
 kite.set_access_token(ACCESS_TOKEN)
 
@@ -24,11 +19,11 @@ def place_order(tradingsymbol, exchange, quantity, transaction_type, product="NR
             product=product,
             order_type=order_type
         )
-        logging.info(f"[ORDER] ✅ Order placed: ID={order_id}")
+        logging.info(f"✅ Order placed: {order_id}")
         return order_id
     except Exception as e:
-        logging.error(f"[ORDER] ❌ Error placing order: {e}")
-        return None
+        logging.error(f"❌ Failed to place order: {e}")
+        raise
 
 def exit_order(tradingsymbol, exchange, quantity, transaction_type, product="NRML", order_type="MARKET"):
     try:
@@ -41,8 +36,8 @@ def exit_order(tradingsymbol, exchange, quantity, transaction_type, product="NRM
             product=product,
             order_type=order_type
         )
-        logging.info(f"[EXIT] ✅ Exit order placed: ID={order_id}")
+        logging.info(f"✅ Exit order placed: {order_id}")
         return order_id
     except Exception as e:
-        logging.error(f"[EXIT] ❌ Error placing exit order: {e}")
-        return None
+        logging.error(f"❌ Failed to exit order: {e}")
+        raise
