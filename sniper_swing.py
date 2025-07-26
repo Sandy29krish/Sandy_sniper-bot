@@ -1,5 +1,3 @@
-# sniper_swing.py
-
 import os
 import json
 import logging
@@ -175,6 +173,11 @@ class SniperSwingBot:
         except Exception as e:
             logger.error(f"Exit failed: {e}")
             self.notifier.send_telegram(f"Exit failed: {e}")
+
+# ✅ THIS IS THE FINAL WRAPPER REQUIRED FOR runner.py TO WORK
+def run_swing_strategy(capital, config):
+    bot = SniperSwingBot(config=config, capital=capital)
+    bot.run()
 
 if __name__ == "__main__":
     import yaml
