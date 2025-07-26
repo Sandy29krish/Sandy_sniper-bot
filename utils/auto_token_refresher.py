@@ -2,7 +2,7 @@ import threading
 import time
 import logging
 from typing import Optional, Callable
-from utils.zerodha_auth import perform_auto_login  # ✅ Correct import location
+from zerodha_auth import perform_auto_login  # ✅ Correct import location
 from utils.kite_api import kite  # Your KiteConnect instance
 
 DEFAULT_REFRESH_INTERVAL = 60 * 15  # 15 minutes
