@@ -1,6 +1,7 @@
 import os
 import time
 import pyotp
+import tempfile  # ✅ NEW
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -13,11 +14,13 @@ def perform_auto_login():
     password = os.getenv("KITE_PASSWORD")
     totp_secret = os.getenv("KITE_TOTP_SECRET")
 
-    # ✅ Setup headless Chrome
+    # ✅ Setup headless Chrome with unique temp user-data-dir
     chrome_options = Options()
-    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")  # ✅ fixes session error
+
     driver = webdriver.Chrome(options=chrome_options)
 
     try:
@@ -25,7 +28,7 @@ def perform_auto_login():
         driver.get(login_url)
         time.sleep(2)
 
-        # Step 1: Enter user ID
+        # Step 1: Enter user ID and password
         driver.find_element(By.ID, "userid").send_keys(user_id)
         driver.find_element(By.ID, "password").send_keys(password)
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
@@ -37,7 +40,7 @@ def perform_auto_login():
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
         time.sleep(3)
 
-        # Step 3: Get request_token from URL
+        # Step 3: Extract request_token
         current_url = driver.current_url
         if "request_token=" not in current_url:
             raise Exception("Login failed or request_token not found in URL.")
@@ -46,8 +49,7 @@ def perform_auto_login():
         # Step 4: Generate access_token
         kite = KiteConnect(api_key=api_key)
         session_data = kite.generate_session(request_token, api_secret=api_secret)
-        access_token = session_data["access_token"]
-        return access_token
+        return session_data["access_token"]
 
     finally:
         driver.quit()
