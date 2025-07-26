@@ -2,7 +2,7 @@ import os
 import time
 import argparse
 import logging
-from sniper_swing import SniperSwing
+from sniper_swing import run_swing_strategy
 from utils.swing_config import SWING_CONFIG
 
 def parse_args():
