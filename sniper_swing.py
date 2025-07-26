@@ -9,7 +9,7 @@ from utils.swing_config import SYMBOLS, CAPITAL
 from utils.lot_manager import get_swing_strike
 from utils.nse_data import get_future_price, get_next_expiry_date
 from utils.trade_logger import log_swing_trade
-from utils.indicator import get_indicators_15m_30m
+from utils.indicators import get_indicators_15m_30m
 from utils.ai_assistant import analyze_trade_signal
 
 STATE_FILE = "sniper_swing_state.json"
