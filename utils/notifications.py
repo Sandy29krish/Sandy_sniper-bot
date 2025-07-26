@@ -1,26 +1,32 @@
-import os
 import requests
-
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-TELEGRAM_ID = os.getenv("TELEGRAM_ID")
-
+import logging
 
 class Notifier:
-    @staticmethod
-    def send(message: str):
-        if not TELEGRAM_BOT_TOKEN or not TELEGRAM_ID:
-            print("❌ Telegram credentials not set.")
-            return
+    def __init__(self, token, chat_id):
+        self.token = token
+        self.chat_id = chat_id
 
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-        data = {
-            "chat_id": TELEGRAM_ID,
-            "text": message
+    def send_telegram(self, text: str) -> bool:
+        """
+        Send a Telegram message using the provided token and chat ID.
+        """
+        if not self.token or not self.chat_id:
+            logging.error("Telegram token or chat ID missing.")
+            return False
+
+        url = f"https://api.telegram.org/bot{self.token}/sendMessage"
+        payload = {
+            "chat_id": self.chat_id,
+            "text": text,
+            "parse_mode": "Markdown"
         }
 
         try:
-            response = requests.post(url, json=data)
+            response = requests.post(url, json=payload, timeout=10)
             if response.status_code != 200:
-                print(f"❌ Failed to send Telegram message: {response.text}")
+                logging.error("Failed to send Telegram message: %s", response.text)
+                return False
+            return True
         except Exception as e:
-            print(f"❌ Telegram error: {e}")
+            logging.exception(f"Error sending telegram message: {e}")
+            return False
