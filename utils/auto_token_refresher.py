@@ -2,7 +2,7 @@ import threading
 import time
 import logging
 from typing import Optional, Callable
-from zerodha_auth import perform_auto_login  # Ensure this file is correct
+from utils.zerodha_auth import perform_auto_login  # Ensure this file is correct
 from utils.kite_api import kite  # Your global Kite instance
 
 # Refresh interval: 15 minutes
