@@ -11,6 +11,7 @@ import yaml
 from sniper_swing import run_swing_strategy  # ✅ Main bot function
 from utils.swing_config import CAPITAL
 from utils.auto_token_refresher import start_token_refresher  # ✅ Token refresh loop
+from logging.handlers import RotatingFileHandler
 
 # Global shutdown event for graceful shutdown
 shutdown_event = threading.Event()
