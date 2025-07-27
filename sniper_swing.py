@@ -13,6 +13,7 @@ from utils.nse_data import get_future_price, get_next_expiry_date
 from utils.trade_logger import log_swing_trade
 from utils.indicators import get_indicators_15m_30m
 from utils.ai_assistant import analyze_trade_signal
+from logging.handlers import RotatingFileHandler
 
 STATE_FILE = "sniper_swing_state.json"
 MAX_DAILY_TRADES = 3
