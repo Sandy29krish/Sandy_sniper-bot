@@ -348,3 +348,12 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         bot.state.save()
         logger.info("Sniper Swing stopped.")
+        def swing_strategy(capital, sleep_interval):
+    logger = setup_logger()
+    logger.info("Swing strategy started")
+
+    # Example logic (replace with your own):
+    while True:
+        # Run signal detection, place order, check conditions...
+        logger.info("Checking market conditions...")
+        time.sleep(sleep_interval)
