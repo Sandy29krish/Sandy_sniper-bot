@@ -2,14 +2,30 @@ from kiteconnect import KiteConnect
 import os
 import logging
 
+def read_access_token_from_file():
+    """Reads the latest access token from file"""
+    token_file = "/root/.kite_token_env"
+    try:
+        with open(token_file, "r") as f:
+            for line in f:
+                if "KITE_ACCESS_TOKEN" in line:
+                    return line.strip().split("=")[1]
+    except Exception as e:
+        logging.error(f"❌ Failed to read access token from file: {e}")
+    return None
+
+# ✅ Use file-based token loading
 API_KEY = os.getenv("KITE_API_KEY")
-ACCESS_TOKEN = os.getenv("KITE_ACCESS_TOKEN")
+ACCESS_TOKEN = read_access_token_from_file()
 
-# Global kite instance
 kite = KiteConnect(api_key=API_KEY)
-kite.set_access_token(ACCESS_TOKEN)
 
-# ✅ Needed by indicators.py and other modules
+if ACCESS_TOKEN:
+    kite.set_access_token(ACCESS_TOKEN)
+else:
+    logging.warning("⚠️ ACCESS_TOKEN not found. Token might not be set yet.")
+
+# ✅ Shared instance
 def get_kite_instance():
     return kite
 
