@@ -8,7 +8,7 @@ import signal
 import sys
 import threading
 import yaml
-from sniper_swing import swing_strategy  # ✅ Main bot function
+from sniper_swing import run_swing_strategy  # ✅ Main bot function
 from utils.swing_config import CAPITAL
 from utils.auto_token_refresher import start_token_refresher  # ✅ Token refresh loop
 
