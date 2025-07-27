@@ -1,6 +1,8 @@
 import os
 import pyotp
+import time
 from kiteconnect import KiteConnect
+
 
 def perform_auto_login():
     api_key = os.getenv("KITE_API_KEY")
@@ -10,19 +12,16 @@ def perform_auto_login():
     totp_secret = os.getenv("KITE_TOTP_SECRET")
 
     if not totp_secret:
-        raise ValueError("❌ KITE_TOTP_SECRET not found. Check your .bashrc or environment settings.")
-
-    # Generate TOTP
-    totp = pyotp.TOTP(totp_secret)
-    totp_code = totp.now()
-
-    kite = KiteConnect(api_key=api_key)
+        raise ValueError("❌ KITE_TOTP_SECRET not found. Check environment variables.")
 
     try:
+        # Generate TOTP code
+        totp = pyotp.TOTP(totp_secret)
+        totp_code = totp.now()
+
         from selenium import webdriver
         from selenium.webdriver.chrome.options import Options
         from selenium.webdriver.common.by import By
-        import time
 
         chrome_options = Options()
         chrome_options.add_argument("--headless")
@@ -32,15 +31,15 @@ def perform_auto_login():
         driver = webdriver.Chrome(options=chrome_options)
         driver.get("https://kite.zerodha.com/")
 
-        # Enter credentials
+        # Login
         driver.find_element(By.ID, "userid").send_keys(user_id)
         driver.find_element(By.ID, "password").send_keys(password)
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
         time.sleep(1)
         driver.find_element(By.ID, "pin").send_keys(totp_code)
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
-
         time.sleep(5)
+
         request_token = None
         current_url = driver.current_url
         if "request_token=" in current_url:
@@ -49,18 +48,20 @@ def perform_auto_login():
         driver.quit()
 
         if not request_token:
-            raise Exception("Request token not found")
+            raise Exception("❌ Request token not found in URL")
 
+        # Generate session and get access token
+        kite = KiteConnect(api_key=api_key)
         data = kite.generate_session(request_token, api_secret=api_secret)
         access_token = data["access_token"]
 
-        # Write to token file
+        # Save access token
         with open("/root/.kite_token_env", "w") as f:
             f.write(access_token)
 
-        print("[✅] Access token updated:", access_token)
+        print("✅ Access token updated successfully:", access_token)
         return access_token
 
     except Exception as e:
-        print("[❌] Error during auto login:", str(e))
+        print("❌ Auto login failed:", str(e))
         return None
