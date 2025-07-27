@@ -99,7 +99,7 @@ def main():
         format='%(asctime)s [%(levelname)s] [%(name)s] %(message)s',
         handlers=[
             logging.StreamHandler(),
-            logging.FileHandler('runner.log', maxBytes=10*1024*1024, backupCount=3)
+            RotatingFileHandler('runner.log', maxBytes=10*1024*1024, backupCount=3)
         ]
     )
 
