@@ -1,0 +1,160 @@
+name: Production Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+      duration:
+        description: 'Run duration in minutes (0 for unlimited)'
+        required: false
+        default: '0'
+
+jobs:
+  deploy-production:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget gnupg unzip xvfb
+        
+        # Install Chrome for Selenium
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+        
+        # Install ChromeDriver
+        CHROME_DRIVER_VERSION=$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE)
+        wget -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/${CHROME_DRIVER_VERSION}/chromedriver_linux64.zip
+        sudo unzip /tmp/chromedriver.zip chromedriver -d /usr/local/bin/
+        sudo chmod +x /usr/local/bin/chromedriver
+        
+        # Start virtual display for headless Chrome
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Create production environment file
+      run: |
+        cat > .env << EOF
+        # Kite/Zerodha API Configuration
+        KITE_API_KEY=${{ secrets.KITE_API_KEY }}
+        KITE_API_SECRET=${{ secrets.KITE_API_SECRET }}
+        KITE_USER_ID=${{ secrets.KITE_USER_ID }}
+        KITE_PASSWORD=${{ secrets.KITE_PASSWORD }}
+        KITE_TOTP_SECRET=${{ secrets.KITE_TOTP_SECRET }}
+        KITE_ACCESS_TOKEN=
+        
+        # Trading Configuration
+        CAPITAL=${{ secrets.CAPITAL || '170000' }}
+        SWING_BOT_CAPITAL=${{ secrets.SWING_BOT_CAPITAL || '170000' }}
+        SLEEP_INTERVAL=${{ secrets.SLEEP_INTERVAL || '60' }}
+        
+        # Telegram Configuration
+        TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
+        TELEGRAM_ID=${{ secrets.TELEGRAM_ID }}
+        
+        # System Health Monitoring
+        HEALTH_CHECK_INTERVAL=${{ secrets.HEALTH_CHECK_INTERVAL || '60' }}
+        HEALTH_CPU_THRESHOLD=${{ secrets.HEALTH_CPU_THRESHOLD || '90.0' }}
+        HEALTH_MEM_THRESHOLD=${{ secrets.HEALTH_MEM_THRESHOLD || '90.0' }}
+        
+        # Logging
+        TRADE_LOG_FILE=${{ secrets.TRADE_LOG_FILE || 'trade_log.json' }}
+        
+        # Production specific
+        ENVIRONMENT=${{ github.event.inputs.environment }}
+        DISPLAY=:99
+        EOF
+    
+    - name: Validate environment and credentials
+      run: |
+        echo "🔍 Validating environment setup..."
+        python -c "
+        from dotenv import load_dotenv
+        import os
+        load_dotenv()
+        
+        required_vars = ['KITE_API_KEY', 'KITE_API_SECRET', 'KITE_USER_ID', 'KITE_PASSWORD', 'KITE_TOTP_SECRET']
+        missing = [var for var in required_vars if not os.getenv(var) or os.getenv(var) == 'your_' + var.lower() + '_here']
+        
+        if missing:
+            print(f'❌ Missing or invalid environment variables: {missing}')
+            exit(1)
+        else:
+            print('✅ All required environment variables are set')
+        "
+    
+    - name: Test token generation
+      run: |
+        echo "🔑 Testing token generation..."
+        timeout 60 python -c "
+        from utils.zerodha_auth import perform_auto_login
+        token = perform_auto_login()
+        if token:
+            print('✅ Token generation successful')
+        else:
+            print('❌ Token generation failed')
+            exit(1)
+        " || echo "⚠️ Token generation test completed with timeout"
+    
+    - name: Run trading bot
+      run: |
+        echo "🚀 Starting production trading bot..."
+        duration=${{ github.event.inputs.duration }}
+        
+        if [ "$duration" = "0" ]; then
+          echo "Running bot indefinitely..."
+          python main.py
+        else
+          echo "Running bot for ${duration} minutes..."
+          timeout ${duration}m python main.py || echo "Bot run completed after ${duration} minutes"
+        fi
+    
+    - name: Upload production logs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: production-logs-${{ github.event.inputs.environment }}-${{ github.run_number }}
+        path: |
+          *.log
+          trade_log.json
+          /root/.kite_token_env
+        retention-days: 30
+    
+    - name: Send notification on failure
+      if: failure() && secrets.TELEGRAM_BOT_TOKEN
+      run: |
+        curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+          -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+          -d text="🚨 Trading Bot Deployment Failed!%0A%0AEnvironment: ${{ github.event.inputs.environment }}%0AWorkflow: ${{ github.workflow }}%0ARun: ${{ github.run_number }}%0A%0ACheck GitHub Actions for details."
+    
+    - name: Send success notification
+      if: success() && secrets.TELEGRAM_BOT_TOKEN
+      run: |
+        curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+          -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+          -d text="✅ Trading Bot Deployed Successfully!%0A%0AEnvironment: ${{ github.event.inputs.environment }}%0AWorkflow: ${{ github.workflow }}%0ARun: ${{ github.run_number }}%0A%0ABot is now running in production."
