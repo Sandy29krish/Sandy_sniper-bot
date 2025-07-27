@@ -9,6 +9,10 @@ def perform_auto_login():
     password = os.getenv("KITE_PASSWORD")
     totp_secret = os.getenv("KITE_TOTP_SECRET")
 
+if not totp_secret:
+    raise ValueError("❌ KITE_TOTP_SECRET not found. Check your .bashrc or environment settings.")
+
+totp = pyotp.TOTP(totp_secret)
     kite = KiteConnect(api_key=api_key)
     
     # Generate TOTP
