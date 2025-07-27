@@ -24,7 +24,7 @@ def setup_logger():
     logger = logging.getLogger("SniperSwing")
     logger.setLevel(logging.INFO)
     if not logger.handlers:
-        handler = logging.FileHandler("sniper_swing.log", maxBytes=10*1024*1024, backupCount=3)
+        handler = RotatingFileHandler("sniper_swing.log", maxBytes=10*1024*1024, backupCount=3)
         formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
         handler.setFormatter(formatter)
         logger.addHandler(handler)
