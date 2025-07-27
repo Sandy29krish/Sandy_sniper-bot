@@ -9,22 +9,17 @@ def perform_auto_login():
     password = os.getenv("KITE_PASSWORD")
     totp_secret = os.getenv("KITE_TOTP_SECRET")
 
-if not totp_secret:
-    raise ValueError("❌ KITE_TOTP_SECRET not found. Check your .bashrc or environment settings.")
+    if not totp_secret:
+        raise ValueError("❌ KITE_TOTP_SECRET not found. Check your .bashrc or environment settings.")
 
-totp = pyotp.TOTP(totp_secret)
-    kite = KiteConnect(api_key=api_key)
-    
-    # Generate TOTP
     totp = pyotp.TOTP(totp_secret)
     totp_code = totp.now()
+    kite = KiteConnect(api_key=api_key)
 
-    # Start session
     try:
         from selenium import webdriver
         from selenium.webdriver.chrome.options import Options
         from selenium.webdriver.common.by import By
-        from selenium.webdriver.common.keys import Keys
         import time
 
         chrome_options = Options()
@@ -35,15 +30,16 @@ totp = pyotp.TOTP(totp_secret)
         driver = webdriver.Chrome(options=chrome_options)
         driver.get("https://kite.zerodha.com/")
 
-        # Enter credentials
+        # Login steps
         driver.find_element(By.ID, "userid").send_keys(user_id)
         driver.find_element(By.ID, "password").send_keys(password)
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
         time.sleep(1)
         driver.find_element(By.ID, "pin").send_keys(totp_code)
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
-
         time.sleep(5)
+
+        # Fetch request token
         request_token = None
         current_url = driver.current_url
         if "request_token=" in current_url:
@@ -57,7 +53,6 @@ totp = pyotp.TOTP(totp_secret)
         data = kite.generate_session(request_token, api_secret=api_secret)
         access_token = data["access_token"]
 
-        # Write to token file
         with open("/root/.kite_token_env", "w") as f:
             f.write(access_token)
 
