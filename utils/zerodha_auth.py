@@ -1,10 +1,5 @@
 import os
-import time
 import pyotp
-import tempfile
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
 from kiteconnect import KiteConnect
 
 def perform_auto_login():
@@ -14,37 +9,57 @@ def perform_auto_login():
     password = os.getenv("KITE_PASSWORD")
     totp_secret = os.getenv("KITE_TOTP_SECRET")
 
-    chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")
+    kite = KiteConnect(api_key=api_key)
+    
+    # Generate TOTP
+    totp = pyotp.TOTP(totp_secret)
+    totp_code = totp.now()
 
-    driver = webdriver.Chrome(options=chrome_options)
-
+    # Start session
     try:
-        login_url = f"https://kite.zerodha.com/connect/login?v=3&api_key={api_key}"
-        driver.get(login_url)
-        time.sleep(2)
+        from selenium import webdriver
+        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.common.keys import Keys
+        import time
 
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+
+        driver = webdriver.Chrome(options=chrome_options)
+        driver.get("https://kite.zerodha.com/")
+
+        # Enter credentials
         driver.find_element(By.ID, "userid").send_keys(user_id)
         driver.find_element(By.ID, "password").send_keys(password)
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
-        time.sleep(2)
-
-        totp = pyotp.TOTP(totp_secret).now()
-        driver.find_element(By.XPATH, "//input[@type='text']").send_keys(totp)
+        time.sleep(1)
+        driver.find_element(By.ID, "pin").send_keys(totp_code)
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
-        time.sleep(3)
 
+        time.sleep(5)
+        request_token = None
         current_url = driver.current_url
-        if "request_token=" not in current_url:
-            raise Exception("Login failed or request_token not found.")
-        request_token = current_url.split("request_token=")[1].split("&")[0]
-
-        kite = KiteConnect(api_key=api_key)
-        session_data = kite.generate_session(request_token, api_secret=api_secret)
-        return session_data["access_token"]
-
-    finally:
+        if "request_token=" in current_url:
+            request_token = current_url.split("request_token=")[-1].split("&")[0]
+        
         driver.quit()
+
+        if not request_token:
+            raise Exception("Request token not found")
+
+        data = kite.generate_session(request_token, api_secret=api_secret)
+        access_token = data["access_token"]
+
+        # Write to token file
+        with open("/root/.kite_token_env", "w") as f:
+            f.write(access_token)
+
+        print("[✅] Access token updated:", access_token)
+        return access_token
+
+    except Exception as e:
+        print("[❌] Error during auto login:", str(e))
+        return None
