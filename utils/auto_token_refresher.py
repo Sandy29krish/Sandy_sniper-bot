@@ -30,18 +30,21 @@ def read_token_from_file():
                 content = f.read().strip()
                 if content.startswith("KITE_ACCESS_TOKEN="):
                     token = content.split("=", 1)[1]
-                    return token if token else None
+                    if token:
+                        return token
                 else:
+                    # Handle old format (just the token)
                     return content if content else None
     except Exception as e:
         print(f"❌ Error reading token from file: {e}")
     return None
 
 def save_token_to_file(access_token):
-    """Save token to file"""
+    """Save token to file with proper error handling"""
     if not access_token:
         print("❌ Cannot save empty token to file")
         return False
+
     try:
         with open(TOKEN_PATH, "w") as f:
             f.write(f"KITE_ACCESS_TOKEN={access_token}\n")
@@ -52,36 +55,12 @@ def save_token_to_file(access_token):
         return False
 
 def refresh_token_loop(stop_event=None):
-    """Token refresh loop (auto retries every 15 min)"""
-    print("🔄 Token refresher loop started.")
+    """Main token refresh loop that can be stopped via stop_event"""
+    print("✅ Token refresher loop started.")
 
     if not ensure_token_directory():
-        print("❌ Cannot continue without token directory.")
+        print("❌ Cannot create token directory, exiting...")
         return
 
     while True:
         if stop_event and stop_event.is_set():
-            print("🛑 Token refresher stopped.")
-            break
-
-        try:
-            access_token = perform_auto_login()
-            if access_token:
-                os.environ["KITE_ACCESS_TOKEN"] = access_token
-                save_token_to_file(access_token)
-                print("✅ Access token refreshed successfully.")
-
-                # Sleep for 15 minutes (900 seconds)
-                for _ in range(900):
-                    if stop_event and stop_event.is_set():
-                        return
-                    time.sleep(1)
-
-            else:
-                print("❌ Access token not received. Retrying in 1 minute...")
-                for _ in range(60):
-                    if stop_event and stop_event.is_set():
-                        return
-                    time.sleep(1)
-
-        except Exception
