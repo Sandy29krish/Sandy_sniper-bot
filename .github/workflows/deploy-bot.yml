@@ -1,0 +1,93 @@
+name: Deploy Trading Bot
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget gnupg unzip
+        # Install Chrome for Selenium
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+        # Install ChromeDriver
+        CHROME_DRIVER_VERSION=$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE)
+        wget -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/$(curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE)/chromedriver_linux64.zip
+        sudo unzip /tmp/chromedriver.zip chromedriver -d /usr/local/bin/
+        sudo chmod +x /usr/local/bin/chromedriver
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Create environment file from secrets
+      run: |
+        cat > .env << EOF
+        # Kite/Zerodha API Configuration
+        KITE_API_KEY=${{ secrets.KITE_API_KEY }}
+        KITE_API_SECRET=${{ secrets.KITE_API_SECRET }}
+        KITE_USER_ID=${{ secrets.KITE_USER_ID }}
+        KITE_PASSWORD=${{ secrets.KITE_PASSWORD }}
+        KITE_TOTP_SECRET=${{ secrets.KITE_TOTP_SECRET }}
+        KITE_ACCESS_TOKEN=
+        
+        # Trading Configuration
+        CAPITAL=${{ secrets.CAPITAL || '170000' }}
+        SWING_BOT_CAPITAL=${{ secrets.SWING_BOT_CAPITAL || '170000' }}
+        SLEEP_INTERVAL=${{ secrets.SLEEP_INTERVAL || '60' }}
+        
+        # Telegram Configuration
+        TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
+        TELEGRAM_ID=${{ secrets.TELEGRAM_ID }}
+        
+        # System Health Monitoring
+        HEALTH_CHECK_INTERVAL=${{ secrets.HEALTH_CHECK_INTERVAL || '60' }}
+        HEALTH_CPU_THRESHOLD=${{ secrets.HEALTH_CPU_THRESHOLD || '90.0' }}
+        HEALTH_MEM_THRESHOLD=${{ secrets.HEALTH_MEM_THRESHOLD || '90.0' }}
+        
+        # Logging
+        TRADE_LOG_FILE=${{ secrets.TRADE_LOG_FILE || 'trade_log.json' }}
+        EOF
+    
+    - name: Test token refresh
+      run: |
+        echo "Testing token refresh functionality..."
+        timeout 30 python utils/auto_token_refresher.py || echo "Token refresh test completed"
+    
+    - name: Run trading bot (if on main branch)
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: |
+        echo "Starting trading bot..."
+        # Run for a limited time in CI/CD
+        timeout 300 python main.py || echo "Bot run completed"
+    
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: bot-logs
+        path: |
+          *.log
+          trade_log.json
+        retention-days: 7

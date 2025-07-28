@@ -3,6 +3,11 @@ import logging
 import signal
 import sys
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 from core.sniper_swing import SniperSwing
 from utils.swing_config import SWING_CONFIG
 from utils.telegram_commands import start_telegram_command_server

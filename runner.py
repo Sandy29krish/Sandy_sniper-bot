@@ -8,6 +8,11 @@ import signal
 import sys
 import threading
 import yaml
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 from sniper_swing import run_swing_strategy  # ✅ Main bot function
 from utils.swing_config import CAPITAL
 from utils.auto_token_refresher import start_token_refresher  # ✅ Token refresh loop

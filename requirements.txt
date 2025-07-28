@@ -9,3 +9,5 @@ pandas
 scikit-learn
 tensorflow  # or torch, depending on your AI framework
 matplotlib
+python-dotenv
+selenium
