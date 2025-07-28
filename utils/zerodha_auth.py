@@ -69,7 +69,7 @@ def perform_auto_login():
 
         # Debug: Print final URL
         current_url = driver.current_url
-        print(f"🔎 Final redirected URL: {current_url}")
+        logger.info(f"🔎 Final redirected URL: {current_url}")
 
         if "request_token=" not in current_url:
             driver.quit()
@@ -78,6 +78,21 @@ def perform_auto_login():
         request_token = current_url.split("request_token=")[1].split("&")[0]
         driver.quit()
 
-        logger.info("🔐 Request token obtained, fetching access token...")
+        logger.info("🔐 Request token obtained, generating access token...")
 
-        # Use KiteConnect to get access token
+        kite = KiteConnect(api_key=api_key)
+        session = kite.generate_session(request_token, api_secret=api_secret)
+        access_token = session["access_token"]
+
+        # Save token
+        with open("/root/.kite_token_env", "w") as f:
+            f.write(f"KITE_ACCESS_TOKEN={access_token}\n")
+
+        os.environ["KITE_ACCESS_TOKEN"] = access_token
+        logger.info("✅ Access token saved and set.")
+
+        return access_token
+
+    except Exception as e:
+        logger.error(f"❌ Auto login failed: {e}")
+        return None
