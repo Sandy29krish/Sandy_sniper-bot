@@ -17,38 +17,43 @@ def perform_auto_login():
     password = os.getenv("KITE_PASSWORD")
     totp_secret = os.getenv("KITE_TOTP_SECRET")
 
-    user_data_dir = tempfile.mkdtemp()
     driver = None
+    user_data_dir = tempfile.mkdtemp()
 
     try:
-        # ✅ Chrome options
         chrome_options = Options()
         chrome_options.add_argument("--headless=new")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
-        chrome_options.add_argument("user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36")
+        chrome_options.add_argument("--window-size=1920x1080")
 
         driver = webdriver.Chrome(options=chrome_options)
-        driver.set_window_size(1200, 900)
         driver.get("https://kite.zerodha.com")
 
         wait = WebDriverWait(driver, 20)
 
-        # ✅ Login steps
-        wait.until(EC.presence_of_element_located((By.ID, "userid"))).send_keys(user_id)
-        wait.until(EC.presence_of_element_located((By.ID, "password"))).send_keys(password)
+        # Step 1: Enter user ID and password
+        user_elem = wait.until(EC.presence_of_element_located((By.ID, "userid")))
+        pass_elem = wait.until(EC.presence_of_element_located((By.ID, "password")))
+        user_elem.send_keys(user_id)
+        pass_elem.send_keys(password)
         wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@type="submit"]'))).click()
 
-        time.sleep(1)  # brief pause
+        # Step 2: Enter TOTP
         totp = pyotp.TOTP(totp_secret).now()
-        wait.until(EC.presence_of_element_located((By.XPATH, '//input[@type="text"]'))).send_keys(totp)
+        totp_input = wait.until(EC.presence_of_element_located((By.XPATH, '//input[@type="text"]')))
+        totp_input.send_keys(totp)
         wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@type="submit"]'))).click()
 
-        time.sleep(3)  # wait for redirect
+        time.sleep(2)
+
+        # Step 3: Extract request_token from URL
         current_url = driver.current_url
+        print("🔍 Current URL after login:", current_url)
+
         if "request_token=" not in current_url:
-            raise Exception("Login failed or TOTP not accepted.")
+            raise Exception("❌ Request token not found in URL. Login failed.")
 
         request_token = current_url.split("request_token=")[-1].split("&")[0]
 
@@ -56,9 +61,9 @@ def perform_auto_login():
         data = kite.generate_session(request_token, api_secret=api_secret)
         access_token = data["access_token"]
 
-        # ✅ Save token for reuse
-        with open("/root/.kite_token_env", "w") as f:
-            f.write(access_token)
+        # ✅ Save access token
+        kite.set_access_token(access_token)
+        print("✅ Access Token:", access_token)
 
         return access_token
 
