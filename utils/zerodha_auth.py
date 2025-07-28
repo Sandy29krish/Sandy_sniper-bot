@@ -15,19 +15,21 @@ def perform_auto_login():
     password = os.getenv("KITE_PASSWORD")
     totp_secret = os.getenv("KITE_TOTP_SECRET")
 
+    # ✅ Create a dedicated temp dir for Chrome user data
     user_data_dir = tempfile.mkdtemp()
+    driver = None  # ✅ Prevent UnboundLocalError
 
     try:
+        # Chrome options
         chrome_options = Options()
-        # Commenting headless for debugging (use headless only after fixing)
-        # chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("--headless=new")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
-        chrome_options.add_argument("--window-size=1280,800")
 
+        # ✅ Start Chrome browser
         driver = webdriver.Chrome(options=chrome_options)
-        driver.get("https://kite.zerodha.com")
+        driver.get("https://kite.zerodha.com/")
 
         time.sleep(2)
         driver.find_element(By.ID, "userid").send_keys(user_id)
@@ -35,34 +37,37 @@ def perform_auto_login():
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
 
         time.sleep(2)
-        totp = pyotp.TOTP(totp_secret).now()
-        driver.find_element(By.XPATH, "//input[@type='text']").send_keys(totp)
+        otp = pyotp.TOTP(totp_secret).now()
+        driver.find_element(By.XPATH, "//input[@type='text']").send_keys(otp)
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
 
-        # Wait for redirect
-        time.sleep(5)
+        time.sleep(3)
         current_url = driver.current_url
-
         if "request_token=" not in current_url:
-            raise Exception("Failed to get request token. Login likely failed.")
+            raise Exception("Login failed: Request token not found.")
 
+        # ✅ Extract request token
         request_token = current_url.split("request_token=")[1].split("&")[0]
 
+        # ✅ Generate access token
         kite = KiteConnect(api_key=api_key)
         data = kite.generate_session(request_token, api_secret=api_secret)
         access_token = data["access_token"]
 
-        # Save token for reuse
-        with open("/root/.kite_token_env", "w") as f:
-            f.write(access_token)
-
-        print(f"[✅] Access Token Generated: {access_token}")
-        driver.quit()
         return access_token
 
     except Exception as e:
-        print("❌ Error during login:", str(e))
-        driver.quit()
-        raise e
+        print(f"[AutoLogin Error] {e}")
+        return None
+
     finally:
-        shutil.rmtree(user_data_dir, ignore_errors=True)
+        # ✅ Safe cleanup
+        if driver:
+            try:
+                driver.quit()
+            except Exception as e:
+                print(f"[Cleanup Warning] Failed to close driver: {e}")
+        try:
+            shutil.rmtree(user_data_dir)
+        except Exception as e:
+            print(f"[Cleanup Warning] Failed to delete temp folder: {e}")
