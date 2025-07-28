@@ -5,7 +5,7 @@ import threading
 from dotenv import load_dotenv
 from utils.zerodha_auth import perform_auto_login
 
-# Load environment variables
+# Load env variables
 load_dotenv()
 
 TOKEN_PATH = "/root/.kite_token_env"
@@ -17,7 +17,7 @@ def ensure_token_directory():
             os.makedirs(token_dir, exist_ok=True)
             print(f"✅ Created token directory: {token_dir}")
         except Exception as e:
-            print(f"❌ Failed to create token directory {token_dir}: {e}")
+            print(f"❌ Failed to create token directory: {e}")
             return False
     return True
 
@@ -27,18 +27,15 @@ def read_token_from_file():
             with open(TOKEN_PATH, "r") as f:
                 content = f.read().strip()
                 if content.startswith("KITE_ACCESS_TOKEN="):
-                    token = content.split("=", 1)[1]
-                    if token:
-                        return token
-                else:
-                    return content if content else None
+                    return content.split("=", 1)[1]
+                return content if content else None
     except Exception as e:
-        print(f"❌ Error reading token from file: {e}")
+        print(f"❌ Error reading token file: {e}")
     return None
 
 def save_token_to_file(access_token):
     if not access_token:
-        print("❌ Cannot save empty token to file")
+        print("❌ Cannot save empty token.")
         return False
     try:
         with open(TOKEN_PATH, "w") as f:
@@ -46,14 +43,14 @@ def save_token_to_file(access_token):
         print(f"✅ Access token saved to {TOKEN_PATH}")
         return True
     except Exception as e:
-        print(f"❌ Failed to save token to file: {e}")
+        print(f"❌ Failed to save token: {e}")
         return False
 
 def refresh_token_loop(stop_event=None):
-    print("✅ Token refresher loop started.")
+    print("🔁 Token refresher loop started.")
 
     if not ensure_token_directory():
-        print("❌ Cannot create token directory, exiting...")
+        print("❌ Token directory missing and can't be created.")
         return
 
     while True:
@@ -66,21 +63,20 @@ def refresh_token_loop(stop_event=None):
             if access_token:
                 os.environ["KITE_ACCESS_TOKEN"] = access_token
                 save_token_to_file(access_token)
-                print("✅ Access token refreshed and saved")
-
+                print("✅ Token refreshed and stored.")
                 for _ in range(900):  # 15 minutes
                     if stop_event and stop_event.is_set():
                         return
                     time.sleep(1)
             else:
-                print("❌ Failed to get access token, retrying in 1 minute...")
+                print("❌ Failed to fetch token. Retrying in 60s.")
                 for _ in range(60):
                     if stop_event and stop_event.is_set():
                         return
                     time.sleep(1)
 
         except Exception as e:
-            print("❌ Exception in token refresh:", e)
+            print(f"❌ Error in token loop: {e}")
             traceback.print_exc()
             for _ in range(60):
                 if stop_event and stop_event.is_set():
