@@ -1,0 +1,9 @@
+requests
+kiteconnect
+pandas
+numpy
+matplotlib
+python-dotenv
+schedule
+psutil
+selenium
