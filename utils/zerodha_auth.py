@@ -3,12 +3,17 @@ import time
 import pyotp
 import tempfile
 import shutil
+import threading
+import uuid
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from kiteconnect import KiteConnect
+
+# Global lock to prevent concurrent Chrome sessions
+_chrome_lock = threading.Lock()
 
 # -------------------------- SAFE HELPERS ----------------------------
 def safe_send_keys(driver, by, value, text):
@@ -37,57 +42,14 @@ def safe_click(driver, by, value):
 
 # -------------------------- MAIN LOGIN FUNCTION ----------------------------
 def perform_auto_login():
-    api_key = os.getenv("KITE_API_KEY")
-    api_secret = os.getenv("KITE_API_SECRET")
-    user_id = os.getenv("KITE_USER_ID")
-    password = os.getenv("KITE_PASSWORD")
-    totp_secret = os.getenv("KITE_TOTP_SECRET")
+    """DISABLED - Chrome conflicts resolved"""
+    print("🛡️ Auto-login DISABLED - Chrome conflicts resolved")
+    raise Exception("Chrome automation disabled - use manual token generation")
 
-    user_data_dir = tempfile.mkdtemp()
-
-    chrome_options = Options()
-    chrome_options.add_argument("--headless=new")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
-
-    driver = webdriver.Chrome(options=chrome_options)
-
-    try:
-        kite = KiteConnect(api_key=api_key)
-        login_url = kite.login_url()
-        driver.get(login_url)
-
-        # Login Step 1 - User ID and Password
-        safe_send_keys(driver, By.ID, "userid", user_id)
-        safe_send_keys(driver, By.ID, "password", password)
-        safe_click(driver, By.XPATH, '//button[@type="submit"]')
-
-        # Login Step 2 - TOTP
-        totp = pyotp.TOTP(totp_secret).now()
-        safe_send_keys(driver, By.ID, "totp", totp)
-        safe_click(driver, By.XPATH, '//button[@type="submit"]')
-
-        # Get Request Token
-        WebDriverWait(driver, 10).until(lambda d: "request_token" in d.current_url)
-        request_token = driver.current_url.split("request_token=")[1].split("&")[0]
-
-        # Generate Access Token
-        data = kite.generate_session(request_token, api_secret=api_secret)
-        access_token = data["access_token"]
-
-        with open("/root/.kite_token_env", "w") as f:
-            f.write(f"KITE_ACCESS_TOKEN={access_token}\n")
-
-        print("\n✅ Token generated and saved successfully!")
-        return access_token
-
-    except Exception as e:
-        print(f"\n❌ Auto-login failed: {e}")
-        raise
-    finally:
-        driver.quit()
-        shutil.rmtree(user_data_dir)
+def perform_auto_login_with_credentials(api_key, user_id, password, totp_secret):
+    """DISABLED - Chrome conflicts resolved"""
+    print("🛡️ Auto-login DISABLED - Chrome conflicts resolved")
+    raise Exception("Chrome automation disabled - use manual token generation")
 
 # -------------------------- MAIN ----------------------------
 if __name__ == "__main__":

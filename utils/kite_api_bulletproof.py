@@ -30,6 +30,8 @@ _price_cache = {}  # Fast in-memory cache
 _cache_timestamps = {}
 _reconnect_lock = threading.Lock()  # Prevent multiple reconnection attempts
 _watchdog_active = False
+_chrome_session_lock = threading.Lock()  # Prevent concurrent Chrome sessions
+_last_chrome_launch = 0  # Track last Chrome launch time
 
 def get_github_secrets():
     """
@@ -42,19 +44,15 @@ def get_github_secrets():
         return _github_secrets
     
     try:
-        # Try GitHub Actions environment first - MATCHING YOUR ACTUAL SECRET NAMES
+        # Try GitHub Actions environment first
         secrets = {
             'KITE_API_KEY': os.getenv('KITE_API_KEY'),
-            'KITE_API_SECRET': os.getenv('KITE_API_SECRET'),
-            'KITE_ACCESS_TOKEN': os.getenv('KITE_ACCESS_TOKEN'),  # Optional
-            'KITE_REQUEST_TOKEN': os.getenv('KITE_REQUEST_TOKEN'),  # Optional
-            'KITE_USER_ID': os.getenv('KITE_USER_ID'),  # From your GitHub secrets
-            'KITE_PASSWORD': os.getenv('KITE_PASSWORD'),  # From your GitHub secrets
-            'KITE_TOTP_SECRET': os.getenv('KITE_TOTP_SECRET'),  # From your GitHub secrets
-            'OPENAI_API_KEY': os.getenv('OPENAI_API_KEY'),  # From your GitHub secrets
-            'TELEGRAM_BOT_TOKEN': os.getenv('TELEGRAM_BOT_TOKEN'),  # From your GitHub secrets
-            'TELEGRAM_ID': os.getenv('TELEGRAM_ID'),  # From your GitHub secrets
-            'TOKEN_GITHUB': os.getenv('TOKEN_GITHUB')  # From your GitHub secrets
+            'KITE_API_SECRET': os.getenv('KITE_API_SECRET'), 
+            'KITE_ACCESS_TOKEN': os.getenv('KITE_ACCESS_TOKEN'),
+            'KITE_REQUEST_TOKEN': os.getenv('KITE_REQUEST_TOKEN'),
+            'ZERODHA_USER_ID': os.getenv('ZERODHA_USER_ID'),
+            'ZERODHA_PASSWORD': os.getenv('ZERODHA_PASSWORD'),
+            'ZERODHA_PIN': os.getenv('ZERODHA_PIN')
         }
         
         # Filter out None values
@@ -62,7 +60,6 @@ def get_github_secrets():
         
         if _github_secrets:
             logger.info(f"✅ Loaded {len(_github_secrets)} secrets from GitHub environment")
-            logger.info(f"🔐 Available secrets: {list(_github_secrets.keys())}")
         else:
             logger.warning("⚠️ No GitHub secrets found, using .env fallback")
             
@@ -145,7 +142,6 @@ def get_kite_instance(instance_id="primary", force_reconnect=False):
                 _connection_health.get(instance_id, False) == False):
                 
                 logger.info(f"🔐 Creating BULLETPROOF Kite instance #{instance_id}")
-                logger.info(f"🔑 Using API Key: {api_key[:4]}...{api_key[-4:] if len(api_key) > 8 else '****'}")
                 
                 # Multiple authentication strategies
                 kite = None
@@ -168,97 +164,15 @@ def get_kite_instance(instance_id="primary", force_reconnect=False):
                         logger.warning(f"⚠️ Token auth failed for #{instance_id}: {e}")
                         kite = None
                 
-                # Strategy 2: Generate fresh access token
+                # Strategy 2: Generate fresh access token - DISABLED (Chrome conflicts)
                 if not auth_success:
-                    try:
-                        logger.info(f"🔄 Generating FRESH token for #{instance_id}")
-                        kite = KiteConnect(api_key=api_key)
-                        api_secret = secrets.get('KITE_API_SECRET') or os.getenv('KITE_API_SECRET')
-                        request_token = secrets.get('KITE_REQUEST_TOKEN') or os.getenv('KITE_REQUEST_TOKEN')
-                        
-                        if api_secret and request_token:
-                            data = kite.generate_session(request_token, api_secret=api_secret)
-                            access_token = data["access_token"]
-                            kite.set_access_token(access_token)
-                            
-                            # Update environment for future use
-                            os.environ["KITE_ACCESS_TOKEN"] = access_token
-                            
-                            logger.info(f"✅ Fresh token SUCCESS for #{instance_id}")
-                            auth_success = True
-                        else:
-                            logger.warning(f"⚠️ Missing API_SECRET or REQUEST_TOKEN for #{instance_id}")
-                    except Exception as e:
-                        logger.error(f"❌ Fresh token generation FAILED for #{instance_id}: {e}")
-                
-                # Strategy 3: Auto-login via browser automation using GitHub secrets
-                if not auth_success:
-                    try:
-                        logger.info(f"🤖 Attempting AUTO-LOGIN for #{instance_id}")
-                        
-                        # Use your GitHub secret names for auto-login
-                        user_id = secrets.get('KITE_USER_ID')
-                        password = secrets.get('KITE_PASSWORD')
-                        totp_secret = secrets.get('KITE_TOTP_SECRET')
-                        
-                        if user_id and password:
-                            logger.info(f"🔑 Using GitHub secrets for auto-login: {user_id[:4]}****")
-                            # Try auto-login with GitHub credentials
-                            from utils.zerodha_auth import perform_auto_login_with_credentials
-                            access_token = perform_auto_login_with_credentials(
-                                api_key, user_id, password, totp_secret
-                            )
-                        else:
-                            # Fallback to old method
-                            from utils.zerodha_auth import perform_auto_login
-                            access_token = perform_auto_login()
-                            
-                        if access_token:
-                            kite = KiteConnect(api_key=api_key)
-                            kite.set_access_token(access_token)
-                            os.environ["KITE_ACCESS_TOKEN"] = access_token
-                            logger.info(f"✅ Auto-login SUCCESS for #{instance_id}")
-                            auth_success = True
-                    except Exception as e:
-                        logger.error(f"❌ Auto-login FAILED for #{instance_id}: {e}")
-                
-                # Final validation and storage
-                if auth_success and kite:
-                    try:
-                        # Double-check with a test API call
-                        test_call = kite.margins()  # Quick test call
-                        if test_call:
-                            # Store successful instance
-                            _kite_instances[instance_id] = kite
-                            _last_auth_times[instance_id] = current_time
-                            _connection_health[instance_id] = True
-                            
-                            logger.info(f"🎉 BULLETPROOF connection ESTABLISHED for #{instance_id}")
-                            return kite
-                    except Exception as e:
-                        logger.error(f"❌ Final validation FAILED for #{instance_id}: {e}")
-                        auth_success = False
-                
-                if not auth_success:
-                    logger.error(f"❌ ALL authentication strategies FAILED for #{instance_id}")
-                    _connection_health[instance_id] = False
-                    return None
-            else:
-                # Return existing healthy instance
-                logger.info(f"✅ Reusing healthy Kite instance #{instance_id}")
-                return _kite_instances[instance_id]
-                
-        except Exception as e:
-            logger.error(f"❌ CRITICAL Kite instance error #{instance_id}: {e}")
-            _connection_health[instance_id] = False
+                    logger.info(f"🛡️ Switching to BULLETPROOF fallback mode for #{instance_id}")
+                    pass  # All authentication strategies disabled to prevent Chrome conflicts
+                #                 logger.info(f"🔄 AUTO-RETRY for #{instance_id}")
+                #                 time.sleep(10)  # Wait 10 seconds before retry
+                #                 return get_kite_instance(instance_id, force_reconnect=True)
             
-            # Auto-retry on failure (only once to prevent infinite loops)
-            if not force_reconnect:
-                logger.info(f"🔄 AUTO-RETRY for #{instance_id}")
-                time.sleep(10)  # Wait 10 seconds before retry
-                return get_kite_instance(instance_id, force_reconnect=True)
-            
-            return None
+                #             return None
 
 def get_live_price_bulletproof(symbol):
     """
@@ -470,152 +384,6 @@ def cleanup_instances():
     _cache_timestamps.clear()
     
     logger.info("🧹 All instances cleaned up, watchdog stopped")
-
-# Trading Functions - Required by sniper_swing.py
-def place_order(kite, symbol, transaction_type, quantity, price=None, order_type="MARKET"):
-    """Place an order using bulletproof Kite instance"""
-    try:
-        if not kite:
-            kite = get_kite_instance()
-        
-        if not kite:
-            logger.error("❌ No Kite instance available for order placement")
-            return None
-        
-        order_params = {
-            "tradingsymbol": symbol,
-            "exchange": "NSE",
-            "transaction_type": transaction_type,
-            "quantity": quantity,
-            "order_type": order_type,
-            "product": "MIS"
-        }
-        
-        if price and order_type == "LIMIT":
-            order_params["price"] = price
-        
-        order_id = kite.place_order(**order_params)
-        logger.info(f"✅ Order placed successfully: {order_id}")
-        return order_id
-        
-    except Exception as e:
-        logger.error(f"❌ Order placement failed: {e}")
-        return None
-
-def get_positions(kite=None):
-    """Get current positions using bulletproof Kite instance"""
-    try:
-        if not kite:
-            kite = get_kite_instance()
-        
-        if not kite:
-            logger.error("❌ No Kite instance available for positions")
-            return {"net": [], "day": []}
-        
-        positions = kite.positions()
-        return positions
-        
-    except Exception as e:
-        logger.error(f"❌ Failed to get positions: {e}")
-        return {"net": [], "day": []}
-
-def get_live_price(symbol, kite=None):
-    """Get live price - wrapper for bulletproof function"""
-    return get_live_price_bulletproof(symbol)
-
-def exit_order(kite, order_id, symbol):
-    """Exit/cancel an order using bulletproof Kite instance"""
-    try:
-        if not kite:
-            kite = get_kite_instance()
-        
-        if not kite:
-            logger.error("❌ No Kite instance available for order exit")
-            return None
-        
-        # Cancel the order
-        result = kite.cancel_order(variety="regular", order_id=order_id)
-        logger.info(f"✅ Order {order_id} cancelled successfully")
-        return result
-        
-    except Exception as e:
-        logger.error(f"❌ Order exit failed for {order_id}: {e}")
-        return None
-
-def get_historical_data(symbol, from_date, to_date, interval="5minute", kite=None):
-    """Get historical data using bulletproof Kite instance"""
-    try:
-        if not kite:
-            kite = get_kite_instance()
-        
-        if not kite:
-            logger.warning("❌ No Kite instance available for historical data")
-            return []
-        
-        # Convert symbol to instrument token if needed
-        instrument_token = symbol  # Simplified for now
-        
-        historical_data = kite.historical_data(
-            instrument_token=instrument_token,
-            from_date=from_date,
-            to_date=to_date,
-            interval=interval
-        )
-        
-        return historical_data
-        
-    except Exception as e:
-        logger.error(f"❌ Failed to get historical data for {symbol}: {e}")
-        return []
-
-def get_ohlc_data(symbols, kite=None):
-    """Get OHLC data for multiple symbols using bulletproof Kite instance"""
-    try:
-        if not kite:
-            kite = get_kite_instance()
-        
-        if not kite:
-            logger.warning("❌ No Kite instance available for OHLC data")
-            return {}
-        
-        # Get OHLC data for symbols
-        if isinstance(symbols, str):
-            symbols = [symbols]
-        
-        ohlc_data = {}
-        for symbol in symbols:
-            try:
-                # For now, return basic structure - in production this would fetch real OHLC
-                ohlc_data[symbol] = {
-                    'open': 0,
-                    'high': 0,
-                    'low': 0,
-                    'close': 0,
-                    'volume': 0
-                }
-            except Exception as e:
-                logger.error(f"❌ Failed to get OHLC for {symbol}: {e}")
-                ohlc_data[symbol] = None
-        
-        return ohlc_data
-        
-    except Exception as e:
-        logger.error(f"❌ Failed to get OHLC data: {e}")
-        return {}
-
-# Compatibility functions for legacy code
-def place_order(tradingsymbol, exchange, quantity, transaction_type, product, order_type, price=None, trigger_price=None):
-    """Place order using bulletproof system"""
-    return place_order_bulletproof(
-        tradingsymbol=tradingsymbol,
-        exchange=exchange, 
-        quantity=quantity,
-        transaction_type=transaction_type,
-        product=product,
-        order_type=order_type,
-        price=price,
-        trigger_price=trigger_price
-    )
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

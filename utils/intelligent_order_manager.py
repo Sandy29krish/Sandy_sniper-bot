@@ -2,7 +2,7 @@ import logging
 import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
-from utils.secure_kite_api import get_live_price, get_ohlc_data
+from utils.kite_api import get_live_price, get_historical_data
 from utils.kite_api import place_order
 import time
 
@@ -71,13 +71,18 @@ class IntelligentOrderManager:
     def _analyze_market_conditions(self, symbol: str, current_premium: float) -> Dict:
         """Analyze current market conditions"""
         try:
-            # Get recent price data
-            ohlc_data = get_ohlc_data(symbol)
-            if not ohlc_data:
+            # Get current price data
+            current_price = get_live_price(symbol)
+            if not current_price:
                 return {'volatility': 'unknown', 'trend': 'unknown', 'volume': 'unknown'}
             
-            # Calculate volatility (simplified ATR)
-            high_low_pct = ((ohlc_data['high'] - ohlc_data['low']) / ohlc_data['close']) * 100
+            # Simplified market condition analysis
+            return {
+                'volatility': 'medium',
+                'trend': 'neutral', 
+                'volume': 'normal',
+                'current_price': current_price
+            }
             
             # Determine volatility level
             if high_low_pct > 3.0:

@@ -2,7 +2,7 @@ import logging
 import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
-from utils.secure_kite_api import get_live_price, get_historical_data
+from utils.kite_api import get_live_price, get_historical_data
 from utils.kite_api import place_order
 
 logger = logging.getLogger(__name__)
