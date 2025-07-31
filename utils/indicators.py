@@ -1,23 +1,86 @@
+#!/usr/bin/env python3
+"""
+Technical Indicators for Sandy Sniper Bot - Enhanced Edition
+Preserves your original settings and core logic
+"""
+
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from utils.kite_api import get_kite_instance
 from utils.nse_data import SYMBOL_TOKEN_MAP
 from utils.cpr_calculator import cpr_calculator
+import logging
+
+logger = logging.getLogger(__name__)
+
+# ======= YOUR ORIGINAL CORE INDICATORS (Enhanced) =======
+
+def calculate_rsi(df, period=21):
+    """Calculate RSI using your original OHLC/4 method - Enhanced with logging"""
+    try:
+        # Your original OHLC/4 calculation
+        df['ohlc4'] = (df['open'] + df['high'] + df['low'] + df['close']) / 4
+        
+        # Calculate RSI on OHLC/4 instead of close (your original method)
+        delta = df['ohlc4'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
+        
+        logger.debug(f"RSI calculated: Latest value = {rsi.iloc[-1]:.2f}")
+        return rsi
+    except Exception as e:
+        logger.error(f"Error calculating RSI: {e}")
+        return pd.Series(index=df.index, dtype=float)
+
+def calculate_macd(close_series, fast=12, slow=26, signal=9):
+    """Calculate MACD with your enhanced logic"""
+    try:
+        # Your MACD calculation
+        exp1 = close_series.ewm(span=fast, adjust=False).mean()
+        exp2 = close_series.ewm(span=slow, adjust=False).mean()
+        macd = exp1 - exp2
+        macd_signal = macd.ewm(span=signal, adjust=False).mean()
+        
+        logger.debug(f"MACD calculated: {macd.iloc[-1]:.3f}, Signal: {macd_signal.iloc[-1]:.3f}")
+        return macd, macd_signal
+    except Exception as e:
+        logger.error(f"Error calculating MACD: {e}")
+        return pd.Series(index=close_series.index, dtype=float), pd.Series(index=close_series.index, dtype=float)
+
+def calculate_bollinger_bands(close_series, period=20, std_dev=2):
+    """Calculate Bollinger Bands - Your original support/resistance logic enhanced"""
+    try:
+        # Your Bollinger Bands calculation
+        sma = close_series.rolling(window=period).mean()
+        std = close_series.rolling(window=period).std()
+        
+        upper_band = sma + (std_dev * std)
+        lower_band = sma - (std_dev * std)
+        
+        logger.debug(f"BB calculated: Upper={upper_band.iloc[-1]:.2f}, Lower={lower_band.iloc[-1]:.2f}")
+        return upper_band, sma, lower_band
+    except Exception as e:
+        logger.error(f"Error calculating Bollinger Bands: {e}")
+        return pd.Series(index=close_series.index, dtype=float), pd.Series(index=close_series.index, dtype=float), pd.Series(index=close_series.index, dtype=float)
+
+# ======= YOUR ORIGINAL MOVING AVERAGES (Enhanced) =======
 
 def calculate_mas(df):
-    df['ma9'] = df['close'].ewm(span=9, adjust=False).mean()
-    df['ma20'] = df['close'].rolling(20).mean()
-    df['ma50'] = df['close'].rolling(50).mean()
-    df['ma200'] = df['high'].rolling(200).mean()  # 200 WMA based on High
-    return df
-
-def calculate_rsi(df, period=21):  # Changed to 21 to match chart RSI(21,ohlc/4)
-    # Calculate OHLC/4 (typical price) as used in your charts
-    df['ohlc4'] = (df['open'] + df['high'] + df['low'] + df['close']) / 4
-    
-    # Calculate RSI on OHLC/4 instead of close
-    delta = df['ohlc4'].diff()
+    """Your original moving averages with enhanced error handling"""
+    try:
+        df['ma9'] = df['close'].ewm(span=9, adjust=False).mean()
+        df['ma20'] = df['close'].rolling(20).mean()
+        df['ma50'] = df['close'].rolling(50).mean()
+        df['ma200'] = df['high'].rolling(200).mean()  # Your original 200 WMA based on High
+        
+        logger.debug("Moving averages calculated successfully")
+        return df
+    except Exception as e:
+        logger.error(f"Error calculating moving averages: {e}")
+        return df
     gain = delta.where(delta > 0, 0).rolling(window=period).mean()
     loss = -delta.where(delta < 0, 0).rolling(window=period).mean()
     rs = gain / loss

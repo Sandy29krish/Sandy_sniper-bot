@@ -255,5 +255,45 @@ def test_market_timing():
         exchange = timing.get_exchange_for_symbol(symbol)
         print(f"{symbol} ({exchange}): {next_open.strftime('%Y-%m-%d %H:%M:%S IST')}")
 
+    def is_friday_315(self) -> bool:
+        """Check if it's Friday 3:15 PM (early close time)"""
+        now = self.get_current_time()
+        return (now.weekday() == 4 and  # Friday
+                now.hour == 15 and 
+                now.minute >= 15)
+    
+    def is_within_first_15_minutes(self) -> bool:
+        """Check if we're within first 15 minutes of market open"""
+        now = self.get_current_time()
+        current_time = now.time()
+        
+        # Market opens at 9:15 AM, so first 15 minutes is 9:15-9:30
+        first_15_start = time(9, 15)
+        first_15_end = time(9, 30)
+        
+        return (self.is_market_open() and 
+                first_15_start <= current_time <= first_15_end)
+
+# Global convenience functions for backward compatibility
+def is_market_open(symbol='NIFTY') -> bool:
+    """Global function for backward compatibility"""
+    timing = EnhancedMarketTiming()
+    return timing.is_market_open(symbol)
+
+def get_market_status(symbol='NIFTY') -> dict:
+    """Global function for backward compatibility"""
+    timing = EnhancedMarketTiming()
+    return timing.get_market_status(symbol)
+
+def is_friday_315() -> bool:
+    """Global function for backward compatibility"""
+    timing = EnhancedMarketTiming()
+    return timing.is_friday_315()
+
+def is_within_first_15_minutes() -> bool:
+    """Global function for backward compatibility"""
+    timing = EnhancedMarketTiming()
+    return timing.is_within_first_15_minutes()
+
 if __name__ == "__main__":
     test_market_timing() 
