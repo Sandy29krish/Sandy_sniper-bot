@@ -10,11 +10,16 @@ import requests
 from pathlib import Path
 
 # Import bot modules for health checks
-from utils.secure_kite_api import test_kite_connection
-from utils.nse_data import get_live_price
-from utils.indicators import calculate_rsi
-from utils.ai_assistant import test_ai_functionality
-from utils.trade_logger import test_logging_system
+from .secure_kite_api import test_kite_connection
+from .nse_data import get_live_price
+from .indicators import calculate_rsi
+from .ai_assistant import test_ai_functionality
+from .trade_logger import test_logging_system
+import sys
+import os
+
+# Add root directory to path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from market_timing import is_market_open
 from telegram_commands import test_telegram_connection
 
