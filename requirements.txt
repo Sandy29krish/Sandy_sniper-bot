@@ -1,0 +1,49 @@
+# Ultimate Sandy Sniper Bot v5.0 - Production Requirements
+
+# Core Dependencies
+python-telegram-bot==20.7
+kiteconnect==4.2.0
+pandas==2.1.4
+numpy==1.24.3
+talib-binary==0.4.25
+pytz==2023.3
+
+# Data & Analysis
+requests==2.31.0
+aiohttp==3.9.1
+websockets==12.0
+
+# Database & Storage
+sqlite3-utils==3.35
+sqlalchemy==2.0.23
+
+# Scheduling & Background Tasks
+apscheduler==3.10.4
+asyncio-mqtt==0.16.1
+
+# Logging & Monitoring
+structlog==23.2.0
+python-json-logger==2.0.7
+
+# Environment & Configuration
+python-dotenv==1.0.0
+pydantic==2.5.2
+pydantic-settings==2.1.0
+
+# API & Integration
+fastapi==0.104.1
+uvicorn==0.24.0
+
+# Math & Technical Analysis
+scipy==1.11.4
+scikit-learn==1.3.2
+
+# Deployment & Production
+gunicorn==21.2.0
+psutil==5.9.6
+
+# Development & Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
