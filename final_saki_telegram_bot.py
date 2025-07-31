@@ -1,9 +1,33 @@
 #!/usr/bin/env python3
 """
-🎯 FINAL INTEGRATED TELEGRAM BOT FOR SAKI - LIVE TRADING READY
-Complete integration of all systems for tomorrow's live trading
-All commands working, Indian timing, BSE SENSEX support, personalized for Saki
+🚀 SANDY SNIPER BOT v4.0 - COMPLETE FUTURES-OPTIONS TRADING
+Includes SENSEX, auto-rollover, and theta-aware option selection
+Perfect implementation of Saki's trading methodology
 """
+
+import asyncio
+import logging
+import os
+import sys
+import signal
+from datetime import datetime, timedelta
+import pytz
+import requests
+import json
+import math
+from telegram import Update, BotCommand
+from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.error import TelegramError
+
+# Configure logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+# Indian timezone
+IST = pytz.timezone('Asia/Kolkata')
 
 import os
 import sys

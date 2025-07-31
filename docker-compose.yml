@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  sandy-sniper-bot:
+    build: .
+    container_name: sandy-sniper-bot-ultimate
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_ID=${TELEGRAM_ID}
+      - KITE_API_KEY=${KITE_API_KEY:-}
+      - KITE_ACCESS_TOKEN=${KITE_ACCESS_TOKEN:-}
+      - TZ=Asia/Kolkata
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./chat_history.db:/app/chat_history.db
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - bot-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional: Monitoring with Watchtower for auto-updates
+  watchtower:
+    image: containrrr/watchtower
+    container_name: sandy-bot-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: sandy-sniper-bot-ultimate --interval 3600 --cleanup
+    networks:
+      - bot-network
+
+networks:
+  bot-network:
+    driver: bridge
+
+volumes:
+  bot-logs:
+    driver: local
+  bot-data:
+    driver: local
