@@ -40,8 +40,8 @@ SWING_CONFIG = {
 # Total capital allocated for swing strategy
 CAPITAL = 170000  # You can adjust this as needed
 
-# List of symbols extracted from SWING_CONFIG keys
-SYMBOLS = list(SWING_CONFIG.keys())
+# Symbols dictionary (same as SWING_CONFIG for compatibility)
+SYMBOLS = SWING_CONFIG
 
 # Indian Market Trading Hours (IST)
 MARKET_HOURS = {

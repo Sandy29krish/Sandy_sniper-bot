@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 from utils.indicators import fetch_data, calculate_linear_regression_slope
-from utils.secure_kite_api import get_historical_data
+from utils.kite_api import get_historical_data
 
 logger = logging.getLogger(__name__)
 

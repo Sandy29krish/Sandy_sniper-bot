@@ -1,8 +1,13 @@
 import threading
 import time
 import logging
+import sys
+import os
 from kiteconnect import KiteConnect, KiteException
-from utils.telegram_commands import send_telegram_message, check_telegram_health  # You need to implement check_telegram_health
+
+# Add root directory to path for telegram_commands import
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from telegram_commands import send_telegram_message
 
 logger = logging.getLogger(__name__)
 

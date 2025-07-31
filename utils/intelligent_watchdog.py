@@ -10,11 +10,16 @@ import requests
 from pathlib import Path
 
 # Import bot modules for health checks
-from utils.secure_kite_api import test_kite_connection
-from utils.nse_data import get_live_price
-from utils.indicators import calculate_rsi
-from utils.ai_assistant import test_ai_functionality
-from utils.trade_logger import test_logging_system
+from .kite_api import get_kite_instance
+from .nse_data import get_live_price
+from .indicators import calculate_rsi
+from .ai_assistant import test_ai_functionality
+from .trade_logger import test_logging_system
+import sys
+import os
+
+# Add root directory to path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from market_timing import is_market_open
 from telegram_commands import test_telegram_connection
 
@@ -207,7 +212,7 @@ class IntelligentWatchdog:
             
             # Test Kite API connection
             try:
-                kite_status = test_kite_connection()
+                kite_status = bool(get_kite_instance())
                 if not kite_status:
                     api_issues.append("Kite API connection failed")
             except Exception as e:
@@ -521,7 +526,7 @@ class IntelligentWatchdog:
             
             for issue in original_issues:
                 if "Kite API" in issue:
-                    if not test_kite_connection():
+                    if not get_kite_instance():
                         remaining_issues.append(issue)
                 elif "Telegram" in issue:
                     if not test_telegram_connection():

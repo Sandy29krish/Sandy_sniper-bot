@@ -5,7 +5,7 @@ from datetime import datetime, time
 import pytz
 from functools import lru_cache
 import gc
-from utils.kite_api import place_order, exit_order
+from utils.kite_api import get_kite_instance, get_live_price, place_order, get_positions
 from utils.notifications import Notifier
 from utils.swing_config import SYMBOLS, CAPITAL, RISK_CONFIG
 from utils.lot_manager import get_swing_strike
@@ -27,6 +27,16 @@ from utils.intelligent_watchdog import start_watchdog_monitoring, get_watchdog_h
 STATE_FILE = "sniper_swing_state.json"
 MAX_DAILY_TRADES = RISK_CONFIG['max_daily_trades']
 MAX_SIMULTANEOUS_TRADES = RISK_CONFIG['max_simultaneous_trades']
+
+# SINGLE KITE SESSION - Global reference for efficiency
+_single_kite = None
+
+def get_single_kite_session():
+    """Get the single Kite session for ALL operations"""
+    global _single_kite
+    if _single_kite is None:
+        _single_kite = get_kite_instance()
+    return _single_kite
 
 # Logger with memory-efficient configuration
 def setup_logger():

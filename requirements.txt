@@ -7,3 +7,16 @@ python-dotenv
 schedule
 psutil
 selenium
+pytz
+pyyaml
+python-telegram-bot
+beautifulsoup4
+lxml
+scikit-learn
+ta-lib
+yfinance
+pyotp
+cryptography
+tqdm
+colorama
+dataclasses

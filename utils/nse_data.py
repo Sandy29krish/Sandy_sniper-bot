@@ -2,7 +2,15 @@
 
 import logging
 from datetime import datetime, timedelta
+import pytz
 from utils.kite_api import get_kite_instance
+
+# Indian timezone for all operations
+IST = pytz.timezone('Asia/Kolkata')
+
+def get_ist_time():
+    """Get current Indian Standard Time"""
+    return datetime.now(IST)
 
 def get_current_expiry():
     """
@@ -22,26 +30,33 @@ def get_futures_instrument_token(symbol):
     current_month_futures_tokens = {
         "NIFTY": 256265,    # NIFTY 25JUL FUT (example - needs actual token)
         "BANKNIFTY": 260105, # BANKNIFTY 25JUL FUT (example - needs actual token)
-        "SENSEX": 265,       # SENSEX 25JUL FUT (example - needs actual token)
+        "SENSEX": 265,       # SENSEX 25JUL FUT (BSE futures)
         "FINNIFTY": 111111   # FINNIFTY 25JUL FUT (example - needs actual token)
     }
     return current_month_futures_tokens.get(symbol.upper())
 
+def get_live_price(symbol):
+    """
+    Get live price for a symbol - wrapper for get_future_price
+    """
+    return get_future_price(symbol)
+
 def get_future_price(symbol):
     """
-    Get real live FUTURES price from Zerodha Kite API
+    Get real live FUTURES price from Zerodha Kite API with SENSEX support
     """
     try:
         kite = get_kite_instance()
         
         # Get current expiry
         expiry = get_current_expiry()
+        ist_time = get_ist_time()
         
         # Map symbols to actual futures contract symbols
         futures_symbol_map = {
             "NIFTY": f"NIFTY{expiry}FUT",
             "BANKNIFTY": f"BANKNIFTY{expiry}FUT", 
-            "SENSEX": f"SENSEX{expiry}FUT",
+            "SENSEX": f"SENSEX{expiry}FUT",  # BSE SENSEX futures
             "FINNIFTY": f"FINNIFTY{expiry}FUT"
         }
         

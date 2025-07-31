@@ -1,0 +1,82 @@
+[
+    {
+        "timestamp": "2025-07-30T11:24:42.030524",
+        "symbol": "TEST",
+        "direction": "BUY",
+        "lot_size": 1,
+        "status": "TEST",
+        "entry_price": 100.0,
+        "exit_price": 105.0,
+        "pnl": 5.0
+    },
+    {
+        "timestamp": "2025-07-30T11:39:58.623884",
+        "symbol": "TEST",
+        "direction": "BUY",
+        "lot_size": 1,
+        "status": "TEST",
+        "entry_price": 100.0,
+        "exit_price": 105.0,
+        "pnl": 5.0
+    },
+    {
+        "timestamp": "2025-07-30T11:52:50.756537",
+        "symbol": "TEST",
+        "direction": "BUY",
+        "lot_size": 1,
+        "status": "TEST",
+        "entry_price": 100.0,
+        "exit_price": 105.0,
+        "pnl": 5.0
+    },
+    {
+        "timestamp": "2025-07-30T11:59:10.772127",
+        "symbol": "TEST",
+        "direction": "BUY",
+        "lot_size": 1,
+        "status": "TEST",
+        "entry_price": 100.0,
+        "exit_price": 105.0,
+        "pnl": 5.0
+    },
+    {
+        "timestamp": "2025-07-30T12:07:42.693799",
+        "symbol": "TEST",
+        "direction": "BUY",
+        "lot_size": 1,
+        "status": "TEST",
+        "entry_price": 100.0,
+        "exit_price": 105.0,
+        "pnl": 5.0
+    },
+    {
+        "timestamp": "2025-07-30T12:12:10.308435",
+        "symbol": "TEST",
+        "direction": "BUY",
+        "lot_size": 1,
+        "status": "TEST",
+        "entry_price": 100.0,
+        "exit_price": 105.0,
+        "pnl": 5.0
+    },
+    {
+        "timestamp": "2025-07-30T12:27:26.240467",
+        "symbol": "TEST",
+        "direction": "BUY",
+        "lot_size": 1,
+        "status": "TEST",
+        "entry_price": 100.0,
+        "exit_price": 105.0,
+        "pnl": 5.0
+    },
+    {
+        "timestamp": "2025-07-30T12:42:55.023615",
+        "symbol": "TEST",
+        "direction": "BUY",
+        "lot_size": 1,
+        "status": "TEST",
+        "entry_price": 100.0,
+        "exit_price": 105.0,
+        "pnl": 5.0
+    }
+]

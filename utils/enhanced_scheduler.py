@@ -14,7 +14,7 @@ class EnhancedBotScheduler:
     - Intelligent sleep/wake cycles
     - Automatic refresh and restart
     - Weekend and holiday handling
-    
+    """
     
     def __init__(self):
         self.bot_active = False
@@ -97,7 +97,7 @@ class EnhancedBotScheduler:
         """Start daily bot operations"""
         try:
             current_day = datetime.now().strftime('%A')
-            logger.info(f"🌅 Starting daily operations for {current_day}")
+            logger.info(f"Starting daily operations for {current_day}")
             
             # Reset daily stats
             self.daily_stats = {
@@ -118,16 +118,13 @@ class EnhancedBotScheduler:
             self.bot_active = True
             
             # Send morning notification
-            morning_message = f"""🌅 **GOOD MORNING - {current_day.upper()}**
-
-✅ **Bot Status**: ACTIVE
-⏰ **Trading Hours**: 8:00 AM - {'3:15 PM' if current_day == 'Friday' else '4:00 PM'}
-🎯 **Signal Filter**: Strong/Very Strong/Super Strong Only
-🔄 **Auto Systems**: All Active
-
-**The bot is now monitoring markets and ready for high-quality signals!**
-
-Market opens at 9:15 AM. Pre-market analysis starting..."""
+            morning_message = f"GOOD MORNING - {current_day.upper()}\n\n" \
+                            f"Bot Status: ACTIVE\n" \
+                            f"Trading Hours: 8:00 AM - {'3:15 PM' if current_day == 'Friday' else '4:00 PM'}\n" \
+                            f"Signal Filter: Strong/Very Strong/Super Strong Only\n" \
+                            f"Auto Systems: All Active\n\n" \
+                            f"The bot is now monitoring markets and ready for high-quality signals!\n\n" \
+                            f"Market opens at 9:15 AM. Pre-market analysis starting..."
             
             self._send_notification(morning_message)
             
@@ -144,24 +141,20 @@ Market opens at 9:15 AM. Pre-market analysis starting..."""
             current_day = current_time.strftime('%A')
             greeting_time = current_time.strftime('%H:%M')
             
-            morning_message = f"""🌅 **Good Morning Saki!** 
-
-🚀 **Your Trading Bot is Ready for {current_day.upper()}**
-⏰ **Time**: {greeting_time}
-🎯 **Trading Hours**: 8:00 AM - {'3:15 PM' if current_day == 'Friday' else '4:00 PM'}
-🔥 **Signal Filter**: Strong/Very Strong/Super Strong Only
-🤖 **AI Systems**: All Active
-
-**🎯 Today's Game Plan:**
-✅ Pre-market analysis starting now
-✅ Gap detection active
-✅ Signal strength ranking ready
-✅ Intelligent order management enabled
-✅ Auto rollover system monitoring
-
-**Ready to make profitable trades today, Saki! Let's capture those strong signals! 🚀**
-
-Market opens at 9:15 AM. Your bot is watching... 👀"""
+            morning_message = f"Good Morning Saki!\n\n" \
+                            f"Your Trading Bot is Ready for {current_day.upper()}\n" \
+                            f"Time: {greeting_time}\n" \
+                            f"Trading Hours: 8:00 AM - {'3:15 PM' if current_day == 'Friday' else '4:00 PM'}\n" \
+                            f"Signal Filter: Strong/Very Strong/Super Strong Only\n" \
+                            f"AI Systems: All Active\n\n" \
+                            f"Today's Game Plan:\n" \
+                            f"- Pre-market analysis starting now\n" \
+                            f"- Gap detection active\n" \
+                            f"- Signal strength ranking ready\n" \
+                            f"- Intelligent order management enabled\n" \
+                            f"- Auto rollover system monitoring\n\n" \
+                            f"Ready to make profitable trades today, Saki! Let's capture those strong signals!\n\n" \
+                            f"Market opens at 9:15 AM. Your bot is watching..."
             
             self._send_notification(morning_message)
             

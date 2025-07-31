@@ -44,3 +44,22 @@ def log_swing_trade(trade_data):
             log_file.write(json.dumps(log_entry) + "\n")
     except Exception as e:
         print(f"[❌] Error logging swing trade: {e}")
+
+def test_logging_system():
+    """Test the logging system functionality"""
+    try:
+        # Test basic trade logging
+        log_trade("TEST", "BUY", 1, "TEST", 100.0, 105.0, 5.0)
+        
+        # Test swing trade logging
+        test_trade_data = {
+            "symbol": "TEST",
+            "type": "test",
+            "status": "testing"
+        }
+        log_swing_trade(test_trade_data)
+        
+        return True
+    except Exception as e:
+        print(f"❌ Logging system test failed: {e}")
+        return False
