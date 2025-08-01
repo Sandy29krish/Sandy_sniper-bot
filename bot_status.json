@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-07-31T19:40:42.422735",
+  "bot_alive": true,
+  "pid": "185120",
+  "log_files": [
+    "trading_bot_20250731_193058.log",
+    "persistent_bot_20250731_191613.log",
+    "persistent_bot.log",
+    "persistent_20250731_193028.log",
+    "persistent_20250731_192303.log"
+  ],
+  "configuration": {
+    "bot_token": "\u2705 SET",
+    "chat_id": "7797661300"
+  }
+}
