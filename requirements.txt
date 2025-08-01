@@ -37,6 +37,11 @@ uvicorn==0.24.0
 # Math & Technical Analysis
 scipy==1.11.4
 scikit-learn==1.3.2
+joblib==1.3.2
+
+# Machine Learning & AI
+xgboost==2.0.2
+lightgbm==4.1.0
 
 # Deployment & Production
 gunicorn==21.2.0
