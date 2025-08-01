@@ -1,4 +1,4 @@
-# Ultimate Sandy Sniper Bot v5.0 - Production Requirements
+# Sandy Sniper Bot - Live Trading System Requirements
 
 # Core Dependencies
 python-telegram-bot==20.7
