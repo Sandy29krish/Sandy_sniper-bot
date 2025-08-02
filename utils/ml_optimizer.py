@@ -61,6 +61,34 @@ class MLTradingOptimizer:
         # Load existing models if available
         self.load_models()
     
+    def train_model(self, features, labels):
+        """Basic model training method for testing compatibility"""
+        try:
+            if len(features) < 5:
+                logger.warning("Not enough data for training")
+                return False
+            
+            # Train signal classifier
+            self.signal_classifier.fit(features, labels)
+            self.model_trained = True
+            logger.info("✅ Model trained successfully")
+            return True
+        except Exception as e:
+            logger.error(f"Model training failed: {e}")
+            return False
+    
+    def predict(self, features):
+        """Basic prediction method for testing compatibility"""
+        try:
+            if not self.model_trained:
+                return [0.5]  # Default prediction
+            
+            prediction = self.signal_classifier.predict_proba(features)
+            return prediction[0] if len(prediction) > 0 else [0.5]
+        except Exception as e:
+            logger.error(f"Prediction failed: {e}")
+            return [0.5]
+    
     def ensure_model_directory(self):
         """Create ML models directory if it doesn't exist"""
         if not os.path.exists(self.model_dir):
@@ -485,3 +513,6 @@ class MLTradingOptimizer:
         except Exception as e:
             logger.error(f"ML recommendation failed: {e}")
             return "HOLD", f"ML error: {str(e)[:50]}", 0.5
+
+# Alias for backward compatibility
+MLOptimizer = MLTradingOptimizer

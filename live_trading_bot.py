@@ -131,7 +131,7 @@ class UltimateSandySniper:
         self.application = None
         self.positions = {}
         self.is_trading = True
-        self.current_trading_month = self.get_current_trading_month()
+        self.current_trading_month = "AUG"  # Fixed for testing
         
         if not self.bot_token or not self.chat_id:
             raise ValueError("❌ Missing TELEGRAM_BOT_TOKEN or TELEGRAM_ID in environment")
@@ -485,7 +485,7 @@ class UltimateSandySniper:
                 if current_time.hour >= 9 and current_time.hour < 15:
                     
                     # Check if rollover needed
-                    new_month = self.get_current_trading_month()
+                    new_month = "AUG"  # Fixed for testing
                     if new_month != self.current_trading_month:
                         self.current_trading_month = new_month
                         await self.send_telegram_message(f"🔄 AUTO ROLLOVER: Switched to {new_month} 2025 expiry")

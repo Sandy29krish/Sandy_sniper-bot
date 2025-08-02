@@ -16,6 +16,26 @@ logger = logging.getLogger(__name__)
 
 # ======= YOUR ORIGINAL CORE INDICATORS (Enhanced) =======
 
+def calculate_sma(close_series, period=20):
+    """Calculate Simple Moving Average"""
+    try:
+        sma = close_series.rolling(window=period).mean()
+        logger.debug(f"SMA({period}) calculated: Latest value = {sma.iloc[-1]:.2f}")
+        return sma
+    except Exception as e:
+        logger.error(f"Error calculating SMA: {e}")
+        return pd.Series(index=close_series.index, dtype=float)
+
+def calculate_ema(close_series, period=20):
+    """Calculate Exponential Moving Average"""
+    try:
+        ema = close_series.ewm(span=period, adjust=False).mean()
+        logger.debug(f"EMA({period}) calculated: Latest value = {ema.iloc[-1]:.2f}")
+        return ema
+    except Exception as e:
+        logger.error(f"Error calculating EMA: {e}")
+        return pd.Series(index=close_series.index, dtype=float)
+
 def calculate_rsi(df, period=21):
     """Calculate RSI using your original OHLC/4 method - Enhanced with logging"""
     try:

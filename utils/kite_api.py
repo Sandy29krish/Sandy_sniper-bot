@@ -31,6 +31,28 @@ _cache_timestamps = {}
 _reconnect_lock = threading.Lock()  # Prevent multiple reconnection attempts
 _watchdog_active = False
 
+class KiteAPI:
+    """Simple KiteAPI wrapper for compatibility"""
+    def __init__(self, api_key=None, access_token=None):
+        self.api_key = api_key
+        self.access_token = access_token
+        self.kite = None
+        if api_key and access_token:
+            try:
+                self.kite = KiteConnect(api_key=api_key)
+                self.kite.set_access_token(access_token)
+            except Exception as e:
+                logger.error(f"KiteAPI initialization failed: {e}")
+    
+    def get_quote(self, symbol):
+        """Get quote for symbol"""
+        if self.kite:
+            try:
+                return self.kite.quote(symbol)
+            except Exception as e:
+                logger.error(f"Quote fetch failed: {e}")
+        return None
+
 def get_github_secrets():
     """
     Fetch secrets from GitHub environment variables
