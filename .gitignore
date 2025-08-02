@@ -48,6 +48,29 @@ coverage.xml
 *.cover
 *.py.cover
 .hypothesis/
+
+# Sandy Sniper Bot - Custom Ignores
+# Test files and temporary scripts
+*_test.py
+test_*.py
+*test*.py
+military_grade_test.py
+bulletproof_deployment_test.py
+realistic_deployment_test.py
+final_deployment_test.py
+final_live_test.py
+
+# Backup and temporary documentation
+*_backup.md
+*BACKUP*.md
+LIVE_TRADING_STATUS_REPORT_backup.md
+FINAL_DEPLOYMENT_REPORT.md
+MONDAY_DEPLOYMENT_GUIDE.md
+DYNAMIC_LOT_SCALING_SUMMARY.md
+COMPLETE_FINALIZED_REPORT.md
+
+# Duplicate requirements files
+requirements_fixed.txt
 .pytest_cache/
 cover/
 
