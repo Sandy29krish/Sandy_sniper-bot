@@ -1,0 +1,135 @@
+{
+  "knowledge_base": [],
+  "momentum_analyses": [],
+  "indicator_modifications": [
+    {
+      "timestamp": "2025-08-02T14:56:26.219827",
+      "indicator": "EMA(20)",
+      "symbol": "NIFTY",
+      "old_value": 24850.0,
+      "new_value": 24865.0,
+      "change_percent": 0.060362173038229376,
+      "reason": "Market volatility adjustment for better signal accuracy",
+      "market_conditions": {
+        "volatility": "MEDIUM",
+        "trend": "BULLISH",
+        "volume": "NORMAL",
+        "market_session": "REGULAR"
+      }
+    },
+    {
+      "timestamp": "2025-08-02T14:57:37.421319",
+      "indicator": "EMA(20)",
+      "symbol": "NIFTY",
+      "old_value": 24850.0,
+      "new_value": 24865.0,
+      "change_percent": 0.060362173038229376,
+      "reason": "Market volatility adjustment for better signal accuracy",
+      "market_conditions": {
+        "volatility": "MEDIUM",
+        "trend": "BULLISH",
+        "volume": "NORMAL",
+        "market_session": "REGULAR"
+      }
+    },
+    {
+      "timestamp": "2025-08-02T14:58:14.474316",
+      "indicator": "EMA(20)",
+      "symbol": "NIFTY",
+      "old_value": 100.0,
+      "new_value": 102.0,
+      "change_percent": 2.0,
+      "reason": "Test modification",
+      "market_conditions": {
+        "volatility": "MEDIUM",
+        "trend": "BULLISH",
+        "volume": "NORMAL",
+        "market_session": "REGULAR"
+      }
+    }
+  ],
+  "daily_ai_reports": [
+    {
+      "date": "2025-08-02",
+      "indicator_modifications": 1,
+      "momentum_analyses": 0,
+      "trades_influenced": 0,
+      "modifications_detail": [
+        {
+          "timestamp": "2025-08-02T14:56:26.219827",
+          "indicator": "EMA(20)",
+          "symbol": "NIFTY",
+          "old_value": 24850.0,
+          "new_value": 24865.0,
+          "change_percent": 0.060362173038229376,
+          "reason": "Market volatility adjustment for better signal accuracy",
+          "market_conditions": {
+            "volatility": "MEDIUM",
+            "trend": "BULLISH",
+            "volume": "NORMAL",
+            "market_session": "REGULAR"
+          }
+        }
+      ],
+      "performance_impact": {
+        "impact": "No trades",
+        "improvement": 0
+      },
+      "summary": "AI Daily Summary - August 02, 2025\n\ud83d\udcca Indicator Adjustments: 1\n\ud83e\udde0 Momentum Analyses: 0\n\ud83d\udcbc Trades Processed: 0\n\ud83d\udd27 Most Adjusted Indicator: EMA(20)\n\ud83d\udcc8 Day Success Rate: 0%\n"
+    },
+    {
+      "date": "2025-08-02",
+      "indicator_modifications": 2,
+      "momentum_analyses": 0,
+      "trades_influenced": 0,
+      "modifications_detail": [
+        {
+          "timestamp": "2025-08-02T14:56:26.219827",
+          "indicator": "EMA(20)",
+          "symbol": "NIFTY",
+          "old_value": 24850.0,
+          "new_value": 24865.0,
+          "change_percent": 0.060362173038229376,
+          "reason": "Market volatility adjustment for better signal accuracy",
+          "market_conditions": {
+            "volatility": "MEDIUM",
+            "trend": "BULLISH",
+            "volume": "NORMAL",
+            "market_session": "REGULAR"
+          }
+        },
+        {
+          "timestamp": "2025-08-02T14:57:37.421319",
+          "indicator": "EMA(20)",
+          "symbol": "NIFTY",
+          "old_value": 24850.0,
+          "new_value": 24865.0,
+          "change_percent": 0.060362173038229376,
+          "reason": "Market volatility adjustment for better signal accuracy",
+          "market_conditions": {
+            "volatility": "MEDIUM",
+            "trend": "BULLISH",
+            "volume": "NORMAL",
+            "market_session": "REGULAR"
+          }
+        }
+      ],
+      "performance_impact": {
+        "impact": "No trades",
+        "improvement": 0
+      },
+      "summary": "AI Daily Summary - August 02, 2025\n\ud83d\udcca Indicator Adjustments: 2\n\ud83e\udde0 Momentum Analyses: 0\n\ud83d\udcbc Trades Processed: 0\n\ud83d\udd27 Most Adjusted Indicator: EMA(20)\n\ud83d\udcc8 Day Success Rate: 0%\n"
+    }
+  ],
+  "performance_stats": {
+    "total_trades": 0,
+    "successful_trades": 0,
+    "failed_trades": 0,
+    "avg_profit": 0,
+    "best_patterns": [],
+    "worst_patterns": [],
+    "win_rate": 0.0,
+    "profit_factor": 1.0
+  },
+  "last_updated": "2025-08-02T14:58:14.474328"
+}

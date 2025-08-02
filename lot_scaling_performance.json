@@ -1,0 +1,21 @@
+{
+  "total_trades": 2,
+  "successful_trades": 2,
+  "win_rate": 1.0,
+  "profit_factor": 1.0,
+  "current_scaling_factor": 3.5,
+  "trade_history": [
+    {
+      "timestamp": "2025-08-02T14:57:37.425931",
+      "success": true,
+      "profit": 500,
+      "lots_used": 20
+    },
+    {
+      "timestamp": "2025-08-02T14:58:14.475690",
+      "success": true,
+      "profit": 100,
+      "lots_used": 35
+    }
+  ]
+}

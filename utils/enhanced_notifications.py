@@ -89,44 +89,6 @@ def send_good_morning_message(capital: int, max_trades: int, market_analysis: Di
         logger.error(f"❌ Error sending good morning message: {e}")
         return False
 
-Today is {current_time.strftime('%A, %B %d, %Y')}
-
-🚀 **Sandy Sniper Bot Status:**
-✅ Enhanced system initialized and ready
-✅ Market data connections active  
-✅ Indian timezone configured (IST)
-✅ Advanced risk management enabled
-✅ AI-powered signal analysis active
-
-📊 **Today's Market Status:**
-{market_status}
-
-💰 **Today's Trading Plan:**
-• Your trading capital: ₹{capital:,}
-• Maximum trades today: {max_trades}
-• Risk management: 2% stop-loss, 6% target
-• Position limit: 3 simultaneous trades
-
-🎯 **Enhanced Features Active:**
-• Multi-timeframe analysis (15m, 30m)
-• Advanced exit management
-• Signal strength analyzer
-• Intelligent order management
-• Real-time position monitoring
-
-**Sandy Sniper Bot is locked and loaded! Ready to hunt for profitable opportunities!** 🎯
-
-Have a fantastic trading day! 💪
-
-*May the markets be in your favor* 🍀
-        """
-        
-        return notifier.send_telegram(message)
-        
-    except Exception as e:
-        logger.error(f"❌ Error sending good morning message: {e}")
-        return False
-
 def send_good_evening_message(performance: Dict[str, Any], notifier: Optional[Notifier] = None) -> bool:
     """Send personalized good evening message to Saki"""
     try:
@@ -188,21 +150,6 @@ def send_good_evening_message(performance: Dict[str, Any], notifier: Optional[No
 ✅ Ready for tomorrow's session
 
 ⏰ **Session End:** {current_time.strftime('%d %b %Y %H:%M IST')}
-        """
-        
-        return notifier.send_telegram(message)
-        
-    except Exception as e:
-        logger.error(f"❌ Error sending good evening message: {e}")
-        return False
-
-🙏 **Thank you for trusting Sandy Sniper Bot with your trading!**
-
-Rest well, Saki. Tomorrow brings new opportunities! 😊
-
-Good night! 🌙✨
-
-*"Success in trading comes to those who are patient and disciplined"*
         """
         
         return notifier.send_telegram(message)
@@ -411,4 +358,175 @@ def send_system_health_alert(health_data: Dict, notifier: Optional[Notifier] = N
         
     except Exception as e:
         logger.error(f"❌ Error sending system health alert: {e}")
+        return False
+
+def send_ai_indicator_modification_alert(modification: Dict[str, Any], notifier: Optional[Notifier] = None) -> bool:
+    """Send Telegram alert for AI indicator modifications"""
+    try:
+        if not notifier:
+            return False
+        
+        current_time = get_indian_time()
+        
+        indicator = modification.get('indicator', 'Unknown')
+        symbol = modification.get('symbol', 'ALL')
+        old_value = modification.get('old_value', 0)
+        new_value = modification.get('new_value', 0)
+        change_percent = modification.get('change_percent', 0)
+        reason = modification.get('reason', 'Optimization')
+        
+        message = f"""
+🤖 **AI INDICATOR ADJUSTMENT**
+
+🔧 **Modification Details:**
+• Indicator: {indicator}
+• Symbol: {symbol}
+• Previous Value: {old_value:.4f}
+• New Value: {new_value:.4f}
+• Change: {change_percent:+.1f}%
+
+🧠 **AI Reasoning:**
+{reason}
+
+⏰ **Time:** {current_time.strftime('%I:%M %p IST')}
+📅 **Date:** {current_time.strftime('%d %b %Y')}
+
+🎯 **Impact:**
+The AI has optimized this indicator based on current market conditions to improve trading accuracy.
+        """
+        
+        return notifier.send_telegram(message)
+        
+    except Exception as e:
+        logger.error(f"Error sending AI indicator modification alert: {e}")
+        return False
+
+def send_ai_exit_alert(symbol: str, exit_reason: str, profit_loss: float, position_data: Dict[str, Any], notifier: Optional[Notifier] = None) -> bool:
+    """Send enhanced AI exit alert with detailed reasoning"""
+    try:
+        if not notifier:
+            return False
+        
+        current_time = get_indian_time()
+        
+        entry_price = position_data.get('entry_price', 0)
+        current_price = position_data.get('current_price', 0)
+        quantity = position_data.get('quantity', 0)
+        signal_type = position_data.get('signal', 'Unknown')
+        
+        pnl_emoji = "💰" if profit_loss > 0 else "📉" if profit_loss < 0 else "⚖️"
+        action_emoji = "🎯" if "partial" in exit_reason.lower() else "🚪"
+        
+        message = f"""
+{action_emoji} **AI EXIT SIGNAL - {symbol}**
+
+{pnl_emoji} **Position Details:**
+• Signal Type: {signal_type.upper()}
+• Entry Price: ₹{entry_price:.2f}
+• Current Price: ₹{current_price:.2f}
+• Quantity: {quantity} lots
+• P&L: {profit_loss:+.1f}%
+
+🤖 **AI Exit Analysis:**
+{exit_reason}
+
+⏰ **Exit Time:** {current_time.strftime('%I:%M %p IST')}
+📅 **Date:** {current_time.strftime('%d %b %Y')}
+
+📊 **Next Steps:**
+{"Position partially closed - monitoring remainder" if "partial" in exit_reason.lower() else "Position fully closed - scanning for new opportunities"}
+        """
+        
+        return notifier.send_telegram(message)
+        
+    except Exception as e:
+        logger.error(f"Error sending AI exit alert: {e}")
+        return False
+
+def send_daily_ai_report(ai_report: Dict[str, Any], notifier: Optional[Notifier] = None) -> bool:
+    """Send daily AI activities report via Telegram"""
+    try:
+        if not notifier:
+            return False
+        
+        current_time = get_indian_time()
+        
+        date = ai_report.get('date', 'Today')
+        modifications_count = ai_report.get('indicator_modifications', 0)
+        momentum_analyses = ai_report.get('momentum_analyses', 0)
+        trades_influenced = ai_report.get('trades_influenced', 0)
+        summary = ai_report.get('summary', 'Report unavailable')
+        performance_impact = ai_report.get('performance_impact', {})
+        
+        ai_success_rate = performance_impact.get('ai_success_rate', 0)
+        regular_success_rate = performance_impact.get('regular_success_rate', 0)
+        improvement = performance_impact.get('improvement', 0)
+        
+        improvement_emoji = "📈" if improvement > 0 else "📉" if improvement < 0 else "⚖️"
+        
+        message = f"""
+🤖 **DAILY AI ACTIVITIES REPORT**
+
+📅 **Date:** {date}
+
+🔧 **AI Activities Summary:**
+• Indicator Adjustments: {modifications_count}
+• Momentum Analyses: {momentum_analyses}
+• Trades Influenced: {trades_influenced}
+
+📊 **Performance Impact:**
+• AI-Influenced Success Rate: {ai_success_rate:.1f}%
+• Regular Trading Success Rate: {regular_success_rate:.1f}%
+{improvement_emoji} • Performance Improvement: {improvement:+.1f}%
+
+🧠 **AI Learning Summary:**
+{summary}
+
+⏰ **Report Generated:** {current_time.strftime('%I:%M %p IST')}
+
+🎯 **Key Insights:**
+{"AI optimization is improving trading performance" if improvement > 0 else "AI continues learning and optimizing strategies" if improvement == 0 else "AI adjusting strategies for better performance"}
+        """
+        
+        return notifier.send_telegram(message)
+        
+    except Exception as e:
+        logger.error(f"Error sending daily AI report: {e}")
+        return False
+
+def send_lot_scaling_update(scaling_info: Dict[str, Any], notifier: Optional[Notifier] = None) -> bool:
+    """Send lot scaling update notification"""
+    try:
+        if not notifier:
+            return False
+        
+        current_time = get_indian_time()
+        
+        win_rate = scaling_info.get('win_rate', '0%')
+        profit_factor = scaling_info.get('profit_factor', '0.00')
+        current_scaling = scaling_info.get('current_scaling', '2.0x')
+        total_trades = scaling_info.get('total_trades', 0)
+        
+        message = f"""
+📊 **LOT SCALING UPDATE**
+
+🎯 **Performance Metrics:**
+• Win Rate: {win_rate}
+• Profit Factor: {profit_factor}
+• Total Trades: {total_trades}
+
+⚖️ **Current Scaling:**
+• Scaling Factor: {current_scaling}
+• Range: 2.0x - 5.0x
+• Status: Dynamic adjustment based on performance
+
+⏰ **Updated:** {current_time.strftime('%I:%M %p IST')}
+
+💡 **Note:** Lot scaling automatically adjusts based on win rate and profit factor to optimize position sizing.
+        """
+        
+        return notifier.send_telegram(message)
+        
+    except Exception as e:
+        logger.error(f"Error sending lot scaling update: {e}")
         return False
