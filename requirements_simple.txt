@@ -1,0 +1,25 @@
+# Sandy Sniper Bot - Compatible Requirements for Python 3.12
+
+# Core Dependencies
+python-telegram-bot>=20.0
+kiteconnect>=4.0
+pandas>=2.0.0
+numpy>=1.25.0
+pytz>=2023.3
+
+# Data & Analysis
+requests>=2.31.0
+
+# Environment & Configuration
+python-dotenv>=1.0.0
+
+# Math & Technical Analysis
+scikit-learn>=1.3.0
+joblib>=1.3.0
+
+# Machine Learning & AI (compatible versions)
+xgboost>=2.0.0
+lightgbm>=4.0.0
+
+# Scheduling
+schedule>=1.2.0
