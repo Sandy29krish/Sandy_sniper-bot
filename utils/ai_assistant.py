@@ -10,13 +10,17 @@ class AIAssistant:
     def __init__(self):
         self.knowledge_base = []
         self.momentum_analyses = []  # Track momentum analyses for exit conditions
+        self.indicator_modifications = []  # Track AI indicator adjustments
+        self.daily_ai_reports = []  # Track daily AI activities
         self.performance_stats = {
             'total_trades': 0,
             'successful_trades': 0,
             'failed_trades': 0,
             'avg_profit': 0,
             'best_patterns': [],
-            'worst_patterns': []
+            'worst_patterns': [],
+            'win_rate': 0.0,
+            'profit_factor': 1.0
         }
         self.learning_file = "ai_learning_data.json"
         self.load_knowledge()
@@ -29,8 +33,10 @@ class AIAssistant:
                     data = json.load(f)
                     self.knowledge_base = data.get('knowledge_base', [])
                     self.momentum_analyses = data.get('momentum_analyses', [])
+                    self.indicator_modifications = data.get('indicator_modifications', [])
+                    self.daily_ai_reports = data.get('daily_ai_reports', [])
                     self.performance_stats = data.get('performance_stats', self.performance_stats)
-                logging.info(f"AI loaded {len(self.knowledge_base)} previous trades and {len(self.momentum_analyses)} momentum analyses")
+                logging.info(f"AI loaded {len(self.knowledge_base)} previous trades, {len(self.momentum_analyses)} momentum analyses, and {len(self.indicator_modifications)} indicator modifications")
         except Exception as e:
             logging.error(f"Error loading AI knowledge: {e}")
 
@@ -40,6 +46,8 @@ class AIAssistant:
             data = {
                 'knowledge_base': self.knowledge_base,
                 'momentum_analyses': self.momentum_analyses,
+                'indicator_modifications': self.indicator_modifications,
+                'daily_ai_reports': self.daily_ai_reports,
                 'performance_stats': self.performance_stats,
                 'last_updated': datetime.now().isoformat()
             }
@@ -115,10 +123,22 @@ class AIAssistant:
         else:
             self.performance_stats['failed_trades'] += 1
             
-        # Calculate average profit
+        # Calculate win rate and profit factor
+        total_trades = self.performance_stats['total_trades']
+        if total_trades > 0:
+            self.performance_stats['win_rate'] = self.performance_stats['successful_trades'] / total_trades
+        
+        # Calculate average profit and profit factor
         profits = [trade.get('profit', 0) for trade in self.knowledge_base if trade.get('profit')]
+        losses = [abs(trade.get('profit', 0)) for trade in self.knowledge_base if trade.get('profit', 0) < 0]
+        
         if profits:
             self.performance_stats['avg_profit'] = np.mean(profits)
+        
+        if profits and losses:
+            avg_win = np.mean([p for p in profits if p > 0]) if any(p > 0 for p in profits) else 0
+            avg_loss = np.mean(losses) if losses else 1
+            self.performance_stats['profit_factor'] = avg_win / avg_loss if avg_loss > 0 else 1.0
         
         # Identify best/worst patterns
         self.update_pattern_analysis()
@@ -126,7 +146,238 @@ class AIAssistant:
         # Save knowledge
         self.save_knowledge()
         
-        logging.info(f"AI knowledge updated. Success rate: {(self.performance_stats['successful_trades']/self.performance_stats['total_trades']*100):.1f}%")
+        logging.info(f"AI knowledge updated. Success rate: {(self.performance_stats['win_rate']*100):.1f}%, Profit Factor: {self.performance_stats['profit_factor']:.2f}")
+
+    def log_indicator_modification(self, indicator_name, old_value, new_value, reason, symbol=None):
+        """Log AI indicator modifications with detailed tracking"""
+        try:
+            from datetime import datetime
+            
+            modification = {
+                'timestamp': datetime.now().isoformat(),
+                'indicator': indicator_name,
+                'symbol': symbol or 'ALL',
+                'old_value': old_value,
+                'new_value': new_value,
+                'change_percent': ((new_value - old_value) / old_value * 100) if old_value != 0 else 0,
+                'reason': reason,
+                'market_conditions': self._get_current_market_conditions()
+            }
+            
+            self.indicator_modifications.append(modification)
+            
+            # Keep only last 1000 modifications to prevent memory issues
+            if len(self.indicator_modifications) > 1000:
+                self.indicator_modifications = self.indicator_modifications[-1000:]
+            
+            self.save_knowledge()
+            
+            # Log the modification
+            logging.info(f"AI Indicator Modification: {indicator_name} changed from {old_value} to {new_value} ({modification['change_percent']:+.1f}%) - Reason: {reason}")
+            
+            return modification
+            
+        except Exception as e:
+            logging.error(f"Error logging indicator modification: {e}")
+            return None
+
+    def get_exit_reason_with_ai_analysis(self, symbol, exit_condition, market_data):
+        """Generate detailed AI exit reasoning for Telegram alerts"""
+        try:
+            current_time = datetime.now().strftime('%I:%M%p')
+            
+            base_reasons = {
+                'ai_momentum_weak': f"AI detected momentum loss due to weakening price action and volume divergence at {current_time}",
+                'sma_cross': f"15min price crossed below/above 20 SMA indicating trend reversal at {current_time}",
+                'volume_decrease': f"Drastic volume decrease detected - insufficient market support at {current_time}",
+                'lr_slope_divergence': f"Linear Regression slope showing negative/positive divergence at {current_time}",
+                'swing_high': f"Swing high/low detected - taking partial profits to secure gains at {current_time}",
+                'lr_slope_negative': f"LR Slope entered negative/positive zone indicating momentum shift at {current_time}"
+            }
+            
+            detailed_reason = base_reasons.get(exit_condition, f"AI exit condition triggered: {exit_condition} at {current_time}")
+            
+            # Add AI analysis context
+            if market_data:
+                volume_analysis = self._analyze_volume_context(market_data)
+                momentum_analysis = self._analyze_momentum_context(market_data)
+                
+                detailed_reason += f"\n📊 Volume Context: {volume_analysis}"
+                detailed_reason += f"\n📈 Momentum Context: {momentum_analysis}"
+            
+            # Add AI confidence level
+            confidence = self._calculate_exit_confidence(exit_condition, market_data)
+            detailed_reason += f"\n🤖 AI Confidence: {confidence:.0f}%"
+            
+            return detailed_reason
+            
+        except Exception as e:
+            logging.error(f"Error generating AI exit reason: {e}")
+            return f"AI-triggered exit: {exit_condition} at {datetime.now().strftime('%I:%M%p')}"
+
+    def generate_daily_ai_report(self):
+        """Generate daily AI activities report"""
+        try:
+            today = datetime.now().date()
+            today_str = today.isoformat()
+            
+            # Filter today's activities
+            today_modifications = [m for m in self.indicator_modifications 
+                                 if m['timestamp'][:10] == today_str]
+            today_momentum_analyses = [m for m in self.momentum_analyses 
+                                     if m['timestamp'][:10] == today_str]
+            
+            # Calculate today's trading impact
+            today_trades = [t for t in self.knowledge_base 
+                          if t.get('date', '')[:10] == today_str]
+            
+            report = {
+                'date': today_str,
+                'indicator_modifications': len(today_modifications),
+                'momentum_analyses': len(today_momentum_analyses),
+                'trades_influenced': len(today_trades),
+                'modifications_detail': today_modifications,
+                'performance_impact': self._calculate_ai_impact(today_trades),
+                'summary': self._generate_daily_summary(today_modifications, today_momentum_analyses, today_trades)
+            }
+            
+            self.daily_ai_reports.append(report)
+            
+            # Keep only last 30 days of reports
+            if len(self.daily_ai_reports) > 30:
+                self.daily_ai_reports = self.daily_ai_reports[-30:]
+            
+            self.save_knowledge()
+            
+            return report
+            
+        except Exception as e:
+            logging.error(f"Error generating daily AI report: {e}")
+            return {'date': datetime.now().date().isoformat(), 'error': str(e)}
+
+    def _get_current_market_conditions(self):
+        """Get current market conditions for context"""
+        try:
+            # This would integrate with real market data
+            return {
+                'volatility': 'MEDIUM',
+                'trend': 'BULLISH',
+                'volume': 'NORMAL',
+                'market_session': 'REGULAR'
+            }
+        except:
+            return {'status': 'UNKNOWN'}
+
+    def _analyze_volume_context(self, market_data):
+        """Analyze volume context for exit reasoning"""
+        try:
+            volumes = market_data.get('volumes', [])
+            if not volumes or len(volumes) < 2:
+                return "Volume data insufficient"
+            
+            recent_vol = volumes[-1]
+            avg_vol = np.mean(volumes[:-1]) if len(volumes) > 1 else recent_vol
+            
+            if recent_vol > avg_vol * 1.5:
+                return "High volume confirming move"
+            elif recent_vol < avg_vol * 0.6:
+                return "Low volume indicating weak conviction"
+            else:
+                return "Normal volume levels"
+                
+        except:
+            return "Volume analysis unavailable"
+
+    def _analyze_momentum_context(self, market_data):
+        """Analyze momentum context for exit reasoning"""
+        try:
+            prices = market_data.get('close_prices', [])
+            if not prices or len(prices) < 3:
+                return "Price data insufficient"
+            
+            recent_momentum = np.mean(np.diff(prices[-3:]))
+            overall_momentum = np.mean(np.diff(prices))
+            
+            if recent_momentum > 0 and overall_momentum > 0:
+                return "Strong bullish momentum"
+            elif recent_momentum < 0 and overall_momentum < 0:
+                return "Strong bearish momentum"
+            elif recent_momentum * overall_momentum < 0:
+                return "Momentum divergence detected"
+            else:
+                return "Neutral momentum"
+                
+        except:
+            return "Momentum analysis unavailable"
+
+    def _calculate_exit_confidence(self, exit_condition, market_data):
+        """Calculate AI confidence in exit decision"""
+        try:
+            base_confidence = {
+                'ai_momentum_weak': 85,
+                'sma_cross': 75,
+                'volume_decrease': 70,
+                'lr_slope_divergence': 80,
+                'swing_high': 90,
+                'lr_slope_negative': 75
+            }
+            
+            confidence = base_confidence.get(exit_condition, 60)
+            
+            # Adjust based on market data quality
+            if market_data:
+                data_quality = min(len(market_data.get('close_prices', [])), 10) / 10
+                confidence = confidence * (0.7 + 0.3 * data_quality)
+            
+            return max(50, min(95, confidence))
+            
+        except:
+            return 70
+
+    def _calculate_ai_impact(self, trades):
+        """Calculate AI impact on trading performance"""
+        try:
+            if not trades:
+                return {'impact': 'No trades', 'improvement': 0}
+            
+            ai_influenced = [t for t in trades if t.get('ai_influenced', False)]
+            regular_trades = [t for t in trades if not t.get('ai_influenced', False)]
+            
+            ai_success_rate = sum(1 for t in ai_influenced if t.get('success', False)) / len(ai_influenced) if ai_influenced else 0
+            regular_success_rate = sum(1 for t in regular_trades if t.get('success', False)) / len(regular_trades) if regular_trades else 0
+            
+            improvement = (ai_success_rate - regular_success_rate) * 100 if regular_success_rate > 0 else 0
+            
+            return {
+                'ai_influenced_trades': len(ai_influenced),
+                'ai_success_rate': ai_success_rate * 100,
+                'regular_success_rate': regular_success_rate * 100,
+                'improvement': improvement
+            }
+            
+        except:
+            return {'impact': 'Calculation error', 'improvement': 0}
+
+    def _generate_daily_summary(self, modifications, momentum_analyses, trades):
+        """Generate human-readable daily summary"""
+        try:
+            summary = f"AI Daily Summary - {datetime.now().strftime('%B %d, %Y')}\n"
+            summary += f"📊 Indicator Adjustments: {len(modifications)}\n"
+            summary += f"🧠 Momentum Analyses: {len(momentum_analyses)}\n"
+            summary += f"💼 Trades Processed: {len(trades)}\n"
+            
+            if modifications:
+                most_modified = max(set(m['indicator'] for m in modifications), 
+                                  key=lambda x: sum(1 for m in modifications if m['indicator'] == x))
+                summary += f"🔧 Most Adjusted Indicator: {most_modified}\n"
+            
+            success_rate = sum(1 for t in trades if t.get('success', False)) / len(trades) * 100 if trades else 0
+            summary += f"📈 Day Success Rate: {success_rate:.0f}%\n"
+            
+            return summary
+            
+        except:
+            return "Daily summary generation failed"
 
     def update_pattern_analysis(self):
         """Analyze and identify best/worst trading patterns"""

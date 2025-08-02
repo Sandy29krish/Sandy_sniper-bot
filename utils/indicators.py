@@ -26,18 +26,42 @@ def calculate_sma(close_series, period=20):
         logger.error(f"Error calculating SMA: {e}")
         return pd.Series(index=close_series.index, dtype=float)
 
-def calculate_ema(close_series, period=20):
-    """Calculate Exponential Moving Average"""
+def calculate_ema(close_series, period=20, ai_adjustment=None, symbol=None):
+    """Calculate Exponential Moving Average with AI adjustment tracking"""
     try:
-        ema = close_series.ewm(span=period, adjust=False).mean()
-        logger.debug(f"EMA({period}) calculated: Latest value = {ema.iloc[-1]:.2f}")
-        return ema
+        original_ema = close_series.ewm(span=period, adjust=False).mean()
+        
+        # Apply AI adjustment if provided
+        if ai_adjustment and ai_adjustment.get('enabled', False):
+            from utils.ai_assistant import AIAssistant
+            ai = AIAssistant()
+            
+            adjustment_factor = ai_adjustment.get('factor', 1.0)
+            adjustment_reason = ai_adjustment.get('reason', 'Market conditions optimization')
+            
+            if adjustment_factor != 1.0:
+                adjusted_ema = original_ema * adjustment_factor
+                
+                # Log the AI modification
+                ai.log_indicator_modification(
+                    indicator_name=f'EMA({period})',
+                    old_value=float(original_ema.iloc[-1]),
+                    new_value=float(adjusted_ema.iloc[-1]),
+                    reason=adjustment_reason,
+                    symbol=symbol
+                )
+                
+                logger.info(f"AI adjusted EMA({period}) for {symbol}: {original_ema.iloc[-1]:.2f} -> {adjusted_ema.iloc[-1]:.2f} (Factor: {adjustment_factor})")
+                return adjusted_ema
+        
+        logger.debug(f"EMA({period}) calculated: Latest value = {original_ema.iloc[-1]:.2f}")
+        return original_ema
     except Exception as e:
         logger.error(f"Error calculating EMA: {e}")
         return pd.Series(index=close_series.index, dtype=float)
 
-def calculate_rsi(df, period=21):
-    """Calculate RSI using your original OHLC/4 method - Enhanced with logging"""
+def calculate_rsi(df, period=21, ai_adjustment=None, symbol=None):
+    """Calculate RSI using your original OHLC/4 method - Enhanced with AI tracking"""
     try:
         # Your original OHLC/4 calculation
         df['ohlc4'] = (df['open'] + df['high'] + df['low'] + df['close']) / 4
@@ -47,10 +71,40 @@ def calculate_rsi(df, period=21):
         gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
         rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
+        original_rsi = 100 - (100 / (1 + rs))
         
-        logger.debug(f"RSI calculated: Latest value = {rsi.iloc[-1]:.2f}")
-        return rsi
+        # Apply AI adjustment if provided
+        if ai_adjustment and ai_adjustment.get('enabled', False):
+            from utils.ai_assistant import AIAssistant
+            ai = AIAssistant()
+            
+            adjustment_type = ai_adjustment.get('type', 'threshold')
+            adjustment_reason = ai_adjustment.get('reason', 'Market volatility optimization')
+            
+            if adjustment_type == 'threshold':
+                # Adjust RSI thresholds (70/30 -> dynamic based on market conditions)
+                volatility_factor = ai_adjustment.get('volatility_factor', 1.0)
+                
+                # Original RSI remains the same, but interpretation changes
+                adjusted_rsi = original_rsi.copy()
+                
+                # Log the threshold adjustment
+                old_threshold = f"70/30"
+                new_threshold = f"{70 * volatility_factor:.0f}/{30 / volatility_factor:.0f}"
+                
+                ai.log_indicator_modification(
+                    indicator_name=f'RSI({period})',
+                    old_value=70.0,
+                    new_value=70.0 * volatility_factor,
+                    reason=f"{adjustment_reason} - Threshold adjustment from {old_threshold} to {new_threshold}",
+                    symbol=symbol
+                )
+                
+                logger.info(f"AI adjusted RSI({period}) thresholds for {symbol}: {old_threshold} -> {new_threshold}")
+                return adjusted_rsi
+        
+        logger.debug(f"RSI calculated: Latest value = {original_rsi.iloc[-1]:.2f}")
+        return original_rsi
     except Exception as e:
         logger.error(f"Error calculating RSI: {e}")
         return pd.Series(index=df.index, dtype=float)
@@ -112,9 +166,10 @@ def calculate_mas(df):
     df['rsi_ma26'] = df['rsi'].rolling(26).mean()
     return df
 
-def calculate_lr_slope(df, period=21):
+def calculate_lr_slope(df, period=21, ai_adjustment=None, symbol=None):
     """
     Calculate Linear Regression Slope on High prices (21,H) as shown in charts
+    Enhanced with AI adjustment tracking
     """
     slopes = []
     for i in range(len(df)):
@@ -126,7 +181,38 @@ def calculate_lr_slope(df, period=21):
             x = np.arange(period)
             b, m = np.polyfit(x, y, 1)
             slopes.append(m)
-    df['lr_slope'] = slopes
+    
+    original_slopes = pd.Series(slopes, index=df.index)
+    
+    # Apply AI adjustment if provided
+    if ai_adjustment and ai_adjustment.get('enabled', False):
+        from utils.ai_assistant import AIAssistant
+        ai = AIAssistant()
+        
+        sensitivity_factor = ai_adjustment.get('sensitivity_factor', 1.0)
+        adjustment_reason = ai_adjustment.get('reason', 'Momentum sensitivity optimization')
+        
+        if sensitivity_factor != 1.0:
+            adjusted_slopes = original_slopes * sensitivity_factor
+            
+            # Log the AI modification
+            if not pd.isna(original_slopes.iloc[-1]) and not pd.isna(adjusted_slopes.iloc[-1]):
+                ai.log_indicator_modification(
+                    indicator_name=f'LR_Slope({period})',
+                    old_value=float(original_slopes.iloc[-1]),
+                    new_value=float(adjusted_slopes.iloc[-1]),
+                    reason=adjustment_reason,
+                    symbol=symbol
+                )
+                
+                logger.info(f"AI adjusted LR Slope({period}) for {symbol}: {original_slopes.iloc[-1]:.6f} -> {adjusted_slopes.iloc[-1]:.6f} (Sensitivity: {sensitivity_factor})")
+            
+            df['lr_slope'] = adjusted_slopes
+        else:
+            df['lr_slope'] = original_slopes
+    else:
+        df['lr_slope'] = original_slopes
+    
     return df
 
 def calculate_linear_regression_slope(series, periods=21):

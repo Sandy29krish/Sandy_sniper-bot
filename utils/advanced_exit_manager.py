@@ -97,7 +97,7 @@ class AdvancedExitManager:
             return False, None, None, 0
     
     def _check_swing_high_exit(self, df_15m, symbol, signal_type, profit_pct):
-        """Check for swing high to book partial profits"""
+        """Check for swing high to book partial profits with enhanced remainder management"""
         try:
             closes = df_15m['close'].values
             highs = df_15m['high'].values
@@ -119,12 +119,20 @@ class AdvancedExitManager:
                         self.swing_high_tracker[symbol].append({
                             'price': current_high,
                             'time': df_15m.index[-1],
-                            'profit_pct': profit_pct
+                            'profit_pct': profit_pct,
+                            'type': 'partial_profit_swing_high'
                         })
                         
                         # Take 50% profit at swing high
                         partial_quantity = int(df_15m.iloc[0].get('quantity', 0) * 0.5)
-                        return True, f"Swing High detected at ₹{current_high:.1f} (Profit: {profit_pct:.1f}%)", "partial_profit", partial_quantity
+                        return True, f"Swing High detected at ₹{current_high:.1f} (Profit: {profit_pct:.1f}%) - Taking 50% profit, holding remainder for higher targets", "partial_profit", partial_quantity
+                    
+                    # Check for remainder exit at subsequent swing high
+                    elif is_swing_high and self.partial_profit_taken[symbol] and profit_pct > 8:
+                        # Exit remainder at next swing high if additional profit
+                        last_swing = self.swing_high_tracker[symbol][-1]
+                        if current_high > last_swing['price'] * 1.005:  # At least 0.5% higher
+                            return True, f"Higher Swing High at ₹{current_high:.1f} - Exiting remainder position (Total Profit: {profit_pct:.1f}%)", "full_exit_swing_high", -1  # -1 indicates full remaining position
             
             else:  # Bearish signal
                 # Look for swing low (local minimum) for bearish positions
@@ -140,12 +148,19 @@ class AdvancedExitManager:
                         self.swing_high_tracker[symbol].append({
                             'price': current_low,
                             'time': df_15m.index[-1],
-                            'profit_pct': profit_pct
+                            'profit_pct': profit_pct,
+                            'type': 'partial_profit_swing_low'
                         })
                         
                         # Take 50% profit at swing low
                         partial_quantity = int(df_15m.iloc[0].get('quantity', 0) * 0.5)
-                        return True, f"Swing Low detected at ₹{current_low:.1f} (Profit: {profit_pct:.1f}%)", "partial_profit", partial_quantity
+                        return True, f"Swing Low detected at ₹{current_low:.1f} (Profit: {profit_pct:.1f}%) - Taking 50% profit, holding remainder for lower targets", "partial_profit", partial_quantity
+                    
+                    # Check for remainder exit at subsequent swing low
+                    elif is_swing_low and self.partial_profit_taken[symbol] and profit_pct > 8:
+                        last_swing = self.swing_high_tracker[symbol][-1]
+                        if current_low < last_swing['price'] * 0.995:  # At least 0.5% lower
+                            return True, f"Lower Swing Low at ₹{current_low:.1f} - Exiting remainder position (Total Profit: {profit_pct:.1f}%)", "full_exit_swing_low", -1
             
             return False, None, None, 0
             
@@ -268,7 +283,7 @@ class AdvancedExitManager:
             return False, None, None
     
     def _check_ai_momentum_weakness(self, df_15m, position_data):
-        """Check if AI detects weakening momentum"""
+        """Check if AI detects weakening momentum with detailed reasoning"""
         try:
             # Import AI assistant for momentum analysis
             from utils.ai_assistant import AIAssistant
@@ -290,8 +305,16 @@ class AdvancedExitManager:
             
             # Exit if AI detects significant momentum weakness
             if momentum_strength < 0.3:  # 30% threshold for momentum weakness
+                # Generate detailed AI exit reasoning
+                symbol = position_data.get('symbol', 'UNKNOWN')
+                detailed_reason = ai.get_exit_reason_with_ai_analysis(
+                    symbol=symbol,
+                    exit_condition='ai_momentum_weak',
+                    market_data=recent_data
+                )
+                
                 confidence_pct = momentum_strength * 100
-                return True, f"AI detected weakening momentum (Confidence: {confidence_pct:.0f}%)", "ai_momentum_weak"
+                return True, detailed_reason, "ai_momentum_weak"
             
             return False, None, None
             
